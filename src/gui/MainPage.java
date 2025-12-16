@@ -3,10 +3,12 @@ package gui;
 import controllers.*;
 import models.*;
 import util.IdManager;
+import util.Range;
 
 import javax.swing.*;
 import java.awt.Cursor;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 // mohannad: implementing card layout, explained here: https://docs.oracle.com/javase/tutorial/uiswing/layout/card.html
 public class MainPage extends javax.swing.JFrame {
@@ -25,6 +27,9 @@ public class MainPage extends javax.swing.JFrame {
         Employee user = SystemManager.getInstance().getCurrentUser();
         welcomLable.setText(String.format("Welcome, %s (%s)", user.getName(), user.getRole().toString()));
         setupProfile();
+        setupProductsTab();
+        setupEmployeeTabs();
+        showInventoryNotifications();
     }
 
     void setupProfile() {
@@ -54,6 +59,188 @@ public class MainPage extends javax.swing.JFrame {
         SystemManager.getInstance().logout();
         this.dispose();
         new LoginPage().setVisible(true);
+    }
+
+    // Product currently being viewed/edited
+    private Product resultProduct;
+
+    void setupProductsTab() {
+        Employee user = SystemManager.getInstance().getCurrentUser();
+        EmployeeRole role = user.getRole();
+
+        // Everyone who can access products can search and list
+        boolean canAccessProducts = (role == EmployeeRole.INVENTORY || role == EmployeeRole.MARKETER || role == EmployeeRole.SALES);
+        
+        // Inventory: Add, Delete, Update, List, Search products + manage damages/returns
+        boolean isInventory = (role == EmployeeRole.INVENTORY);
+        
+        // Marketer: can make reports (queries) and special offers
+        boolean isMarketer = (role == EmployeeRole.MARKETER);
+        
+        // Sales: can search and list products
+        boolean isSales = (role == EmployeeRole.SALES);
+
+        // Search and list buttons - available to Inventory, Marketer, Sales
+        productsearchidButton.setEnabled(canAccessProducts);
+        listallproductsButton.setEnabled(canAccessProducts);
+        resetButton1.setEnabled(canAccessProducts);
+        productidsearch1.setEditable(canAccessProducts);
+
+        // Product fields - editable only by Inventory
+        productname.setEditable(isInventory);
+        productstock.setEditable(isInventory);
+        description.setEditable(isInventory);
+        pricetextbox.setEditable(isInventory);
+        minstocktextbox.setEditable(isInventory);
+        maxstocktextbox.setEditable(isInventory);
+        productionday.setEditable(isInventory);
+        productionmonth.setEditable(isInventory);
+        productonyear.setEditable(isInventory);
+        expiryday.setEditable(isInventory);
+        expirymonth.setEditable(isInventory);
+        expiryyear.setEditable(isInventory);
+        
+        // Returned and damaged fields - only viewable (not editable) 
+        productstockreturned.setEditable(false);
+        productstockdamaged.setEditable(false);
+        
+        // Added date and actual price are always read-only
+        addeddatetextbox.setEditable(false);
+        actualpricetextbox1.setEditable(false);
+
+        // Update and Delete buttons - Inventory only
+        updateProductButton.setEnabled(isInventory);
+        deleteProductButton.setEnabled(isInventory);
+
+        // Resolve damaged and returned - Inventory only
+        resolveDamagedButton.setEnabled(isInventory);
+        resolveReturnedButton1.setEnabled(isInventory);
+
+        // Deal textbox - editable only by Marketer
+        dealtextbox.setEditable(isMarketer);
+        
+        // Make special offer button - Marketer only
+        makespecialofferbutton.setEnabled(isMarketer);
+
+        // Add Product tab - Inventory only
+        addproductname.setEditable(isInventory);
+        addproductstock.setEditable(isInventory);
+        addproductdescription1.setEditable(isInventory);
+        addproductpricetextbox1.setEditable(isInventory);
+        addproductminstocktextbox1.setEditable(isInventory);
+        addproductmaxstocktextbox1.setEditable(isInventory);
+        addproductproductionday1.setEditable(isInventory);
+        addproductproductionmonth1.setEditable(isInventory);
+        addproductproductonyear1.setEditable(isInventory);
+        addproductexpiryday1.setEditable(isInventory);
+        addproductexpirymonthh1.setEditable(isInventory);
+        addproductexpiryyear1.setEditable(isInventory);
+        addproductButton.setEnabled(isInventory);
+    }
+
+    void setupEmployeeTabs() {
+        Employee user = SystemManager.getInstance().getCurrentUser();
+        boolean isAdmin = (user.getRole() == EmployeeRole.ADMIN);
+
+        // Add Employee Tab - Admin only
+        namefield1.setEditable(isAdmin);
+        emailfield1.setEditable(isAdmin);
+        phonefield1.setEditable(isAdmin);
+        usernamefield1.setEditable(isAdmin);
+        passwordfield1.setEditable(isAdmin);
+        roleselector.setEnabled(isAdmin);
+        addempButton.setEnabled(isAdmin);
+        showpasswordButton1.setEnabled(isAdmin);
+
+        // Search & Update Employees Tab - Admin only
+        idsearch.setEditable(isAdmin);
+        usernamesearch.setEditable(isAdmin);
+        searchidButton.setEnabled(isAdmin);
+        searchusernameButton.setEnabled(isAdmin);
+        resultname.setEditable(isAdmin);
+        resultemail.setEditable(isAdmin);
+        resultphone.setEditable(isAdmin);
+        resultusername.setEditable(isAdmin);
+        resultpasswordfield2.setEditable(isAdmin);
+        resultdatefield1.setEditable(isAdmin);
+        resultrolefield1.setEditable(isAdmin);
+        updatempButton.setEnabled(isAdmin);
+        resetButton.setEnabled(isAdmin);
+        listallemployeesButton.setEnabled(isAdmin);
+        deleteempButton.setEnabled(isAdmin);
+        showpasswordButton2.setEnabled(isAdmin);
+    }
+
+    void showInventoryNotifications() {
+        Employee user = SystemManager.getInstance().getCurrentUser();
+        if (user.getRole() != EmployeeRole.INVENTORY) {
+            return;
+        }
+
+        try {
+            ArrayList<String> notifications = SystemManager.getInstance().getInventoryNotifications();
+            if (notifications.isEmpty()) {
+                return;
+            }
+
+            StringBuilder message = new StringBuilder("Inventory Alerts:\n\n");
+            for (String notification : notifications) {
+                message.append("• ").append(notification).append("\n");
+            }
+
+            JOptionPane.showMessageDialog(this,
+                    message.toString(),
+                    "Inventory Notifications",
+                    JOptionPane.WARNING_MESSAGE);
+        } catch (Exception e) {
+            // Silently ignore if there's an issue getting notifications
+        }
+    }
+
+    void resetProductSearchResult() {
+        resultProduct = null;
+        productname.setText("");
+        productstock.setText("");
+        productstockreturned.setText("");
+        productstockdamaged.setText("");
+        description.setText("");
+        pricetextbox.setText("");
+        dealtextbox.setText("");
+        actualpricetextbox1.setText("");
+        minstocktextbox.setText("");
+        maxstocktextbox.setText("");
+        addeddatetextbox.setText("");
+        productionday.setText("");
+        productionmonth.setText("");
+        productonyear.setText("");
+        expiryday.setText("");
+        expirymonth.setText("");
+        expiryyear.setText("");
+    }
+
+    void showProductSearchResult(Product product) {
+        resultProduct = product;
+        productname.setText(product.getName());
+        productstock.setText(String.valueOf(product.getStock()));
+        productstockreturned.setText(String.valueOf(product.getReturnedCounter()));
+        productstockdamaged.setText(String.valueOf(product.getDamagedCounter()));
+        description.setText(product.getDescription());
+        pricetextbox.setText(String.valueOf(product.getPrice()));
+        dealtextbox.setText(String.valueOf(product.getDeal()));
+        actualpricetextbox1.setText(String.format("%.2f", product.getRealPrice()));
+        minstocktextbox.setText(String.valueOf(product.getRecommendedQuantityRange().getMin()));
+        maxstocktextbox.setText(String.valueOf(product.getRecommendedQuantityRange().getMax()));
+        addeddatetextbox.setText(product.getAddedDate().toLocalDate().toString());
+        
+        // Production date
+        productionday.setText(String.valueOf(product.getProductionDate().getDayOfMonth()));
+        productionmonth.setText(String.valueOf(product.getProductionDate().getMonthValue()));
+        productonyear.setText(String.valueOf(product.getProductionDate().getYear()));
+        
+        // Expiry date
+        expiryday.setText(String.valueOf(product.getExpiryDate().getDayOfMonth()));
+        expirymonth.setText(String.valueOf(product.getExpiryDate().getMonthValue()));
+        expiryyear.setText(String.valueOf(product.getExpiryDate().getYear()));
     }
 
     /**
@@ -86,6 +273,8 @@ public class MainPage extends javax.swing.JFrame {
         jLabel11 = new javax.swing.JLabel();
         passwordfield = new javax.swing.JPasswordField();
         updateButton = new javax.swing.JButton();
+        showpasswordButton = new javax.swing.JButton();
+        jLabel53 = new javax.swing.JLabel();
         addemp = new javax.swing.JPanel();
         jLabel12 = new javax.swing.JLabel();
         namefield1 = new javax.swing.JTextField();
@@ -100,6 +289,8 @@ public class MainPage extends javax.swing.JFrame {
         passwordfield1 = new javax.swing.JPasswordField();
         addempButton = new javax.swing.JButton();
         roleselector = new javax.swing.JComboBox<>();
+        showpasswordButton1 = new javax.swing.JButton();
+        jLabel54 = new javax.swing.JLabel();
         jPanel1 = new javax.swing.JPanel();
         jLabel18 = new javax.swing.JLabel();
         idsearch = new javax.swing.JTextField();
@@ -123,6 +314,82 @@ public class MainPage extends javax.swing.JFrame {
         resultrolefield1 = new javax.swing.JTextField();
         jLabel26 = new javax.swing.JLabel();
         resetButton = new javax.swing.JButton();
+        listallemployeesButton = new javax.swing.JButton();
+        deleteempButton = new javax.swing.JButton();
+        showpasswordButton2 = new javax.swing.JButton();
+        jLabel55 = new javax.swing.JLabel();
+        searchUpdateProducts = new javax.swing.JPanel();
+        jLabel27 = new javax.swing.JLabel();
+        productidsearch1 = new javax.swing.JTextField();
+        productsearchidButton = new javax.swing.JButton();
+        resetButton1 = new javax.swing.JButton();
+        listallproductsButton = new javax.swing.JButton();
+        jLabel28 = new javax.swing.JLabel();
+        productstock = new javax.swing.JTextField();
+        jLabel29 = new javax.swing.JLabel();
+        productname = new javax.swing.JTextField();
+        jLabel30 = new javax.swing.JLabel();
+        productstockreturned = new javax.swing.JTextField();
+        jLabel31 = new javax.swing.JLabel();
+        productstockdamaged = new javax.swing.JTextField();
+        jLabel32 = new javax.swing.JLabel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        description = new javax.swing.JTextArea();
+        jLabel33 = new javax.swing.JLabel();
+        pricetextbox = new javax.swing.JTextField();
+        dealtextbox = new javax.swing.JTextField();
+        jLabel34 = new javax.swing.JLabel();
+        jLabel35 = new javax.swing.JLabel();
+        jLabel36 = new javax.swing.JLabel();
+        minstocktextbox = new javax.swing.JTextField();
+        jLabel37 = new javax.swing.JLabel();
+        maxstocktextbox = new javax.swing.JTextField();
+        jLabel38 = new javax.swing.JLabel();
+        addeddatetextbox = new javax.swing.JTextField();
+        jLabel39 = new javax.swing.JLabel();
+        productionday = new javax.swing.JTextField();
+        jLabel40 = new javax.swing.JLabel();
+        updateProductButton = new javax.swing.JButton();
+        deleteProductButton = new javax.swing.JButton();
+        jLabel1 = new javax.swing.JLabel();
+        productionmonth = new javax.swing.JTextField();
+        productonyear = new javax.swing.JTextField();
+        jLabel2 = new javax.swing.JLabel();
+        jLabel3 = new javax.swing.JLabel();
+        expiryday = new javax.swing.JTextField();
+        expirymonth = new javax.swing.JTextField();
+        expiryyear = new javax.swing.JTextField();
+        jLabel41 = new javax.swing.JLabel();
+        actualpricetextbox1 = new javax.swing.JTextField();
+        resolveDamagedButton = new javax.swing.JButton();
+        makespecialofferbutton = new javax.swing.JButton();
+        resolveReturnedButton1 = new javax.swing.JButton();
+        addproduct = new javax.swing.JPanel();
+        jLabel42 = new javax.swing.JLabel();
+        addproductname = new javax.swing.JTextField();
+        jLabel43 = new javax.swing.JLabel();
+        addproductstock = new javax.swing.JTextField();
+        jLabel44 = new javax.swing.JLabel();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        addproductdescription1 = new javax.swing.JTextArea();
+        jLabel45 = new javax.swing.JLabel();
+        addproductpricetextbox1 = new javax.swing.JTextField();
+        jLabel46 = new javax.swing.JLabel();
+        addproductminstocktextbox1 = new javax.swing.JTextField();
+        addproductmaxstocktextbox1 = new javax.swing.JTextField();
+        jLabel47 = new javax.swing.JLabel();
+        jLabel48 = new javax.swing.JLabel();
+        addproductproductionday1 = new javax.swing.JTextField();
+        jLabel49 = new javax.swing.JLabel();
+        addproductproductionmonth1 = new javax.swing.JTextField();
+        jLabel50 = new javax.swing.JLabel();
+        addproductproductonyear1 = new javax.swing.JTextField();
+        jLabel51 = new javax.swing.JLabel();
+        addproductexpiryday1 = new javax.swing.JTextField();
+        addproductexpirymonthh1 = new javax.swing.JTextField();
+        addproductexpiryyear1 = new javax.swing.JTextField();
+        addproductButton = new javax.swing.JButton();
+        jLabel52 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
         setTitle("Hyper Market System v1.0");
@@ -234,6 +501,20 @@ public class MainPage extends javax.swing.JFrame {
         updateButton.addActionListener(this::updateButtonActionPerformed);
         profilePanel.add(updateButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(320, 460, 200, 50));
 
+        showpasswordButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                showpasswordButtonshowpasswordhandler(evt);
+            }
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                showpasswordButtonhidepasswordhandler(evt);
+            }
+        });
+        showpasswordButton.addActionListener(this::showpasswordButtonActionPerformed);
+        profilePanel.add(showpasswordButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(590, 420, 20, 20));
+
+        jLabel53.setText("Show Password");
+        profilePanel.add(jLabel53, new org.netbeans.lib.awtextra.AbsoluteConstraints(620, 420, -1, -1));
+
         mainTappedPanel.addTab("Profile", new javax.swing.ImageIcon(getClass().getResource("/gui/media/user.png")), profilePanel, ""); // NOI18N
 
         jLabel12.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
@@ -273,12 +554,27 @@ public class MainPage extends javax.swing.JFrame {
         roleselector.setFont(new java.awt.Font("Noto Sans", 0, 18)); // NOI18N
         roleselector.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "ADMIN", "INVENTORY", "SALES", "MARKETER" }));
 
+        showpasswordButton1.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                showpasswordButton1showpasswordhandler(evt);
+            }
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                showpasswordButton1hidepasswordhandler(evt);
+            }
+        });
+        showpasswordButton1.addActionListener(this::showpasswordButton1ActionPerformed);
+
+        jLabel54.setText("Show Password");
+
         javax.swing.GroupLayout addempLayout = new javax.swing.GroupLayout(addemp);
         addemp.setLayout(addempLayout);
         addempLayout.setHorizontalGroup(
             addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(addempLayout.createSequentialGroup()
                 .addGroup(addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(addempLayout.createSequentialGroup()
+                        .addGap(294, 294, 294)
+                        .addComponent(addempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(addempLayout.createSequentialGroup()
                         .addGap(80, 80, 80)
                         .addGroup(addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -305,11 +601,12 @@ public class MainPage extends javax.swing.JFrame {
                             .addGroup(addempLayout.createSequentialGroup()
                                 .addComponent(jLabel17)
                                 .addGap(79, 79, 79)
-                                .addComponent(passwordfield1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                    .addGroup(addempLayout.createSequentialGroup()
-                        .addGap(294, 294, 294)
-                        .addComponent(addempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(598, 598, 598))
+                                .addComponent(passwordfield1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(18, 18, 18)
+                        .addComponent(showpasswordButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel54)))
+                .addContainerGap(460, Short.MAX_VALUE))
         );
         addempLayout.setVerticalGroup(
             addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -334,11 +631,19 @@ public class MainPage extends javax.swing.JFrame {
                 .addGroup(addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel16)
                     .addComponent(usernamefield1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(18, 18, 18)
                 .addGroup(addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel17)
-                    .addComponent(passwordfield1, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                    .addGroup(addempLayout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel17)
+                            .addComponent(passwordfield1, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, addempLayout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(addempLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jLabel54)
+                            .addComponent(showpasswordButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(20, 20, 20)))
                 .addComponent(addempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
@@ -414,6 +719,26 @@ public class MainPage extends javax.swing.JFrame {
         resetButton.setText("Reset");
         resetButton.addActionListener(this::resetButtonActionPerformed);
 
+        listallemployeesButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        listallemployeesButton.setText("List All Employees");
+        listallemployeesButton.addActionListener(this::listallemployeesButtonActionPerformed);
+
+        deleteempButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        deleteempButton.setText("Delete Employee");
+        deleteempButton.addActionListener(this::deleteempButtonActionPerformed);
+
+        showpasswordButton2.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                showpasswordButton2showpasswordhandler(evt);
+            }
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                showpasswordButton2hidepasswordhandler(evt);
+            }
+        });
+        showpasswordButton2.addActionListener(this::showpasswordButton2ActionPerformed);
+
+        jLabel55.setText("Show");
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -426,22 +751,35 @@ public class MainPage extends javax.swing.JFrame {
                         .addGap(49, 49, 49)
                         .addComponent(resultdatefield1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(39, 39, 39)
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addGap(225, 225, 225)
+                        .addComponent(resetButton)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jLabel26)
+                        .addGap(121, 121, 121)
+                        .addComponent(resultrolefield1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(searchidButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(searchusernameButton))
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addGroup(jPanel1Layout.createSequentialGroup()
-                                    .addComponent(jLabel18)
-                                    .addGap(58, 58, 58)
-                                    .addComponent(idsearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                                    .addComponent(jLabel19)
-                                    .addGap(74, 74, 74)
-                                    .addComponent(usernamesearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 92, Short.MAX_VALUE)
+                                .addGap(39, 39, 39)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addGroup(jPanel1Layout.createSequentialGroup()
+                                        .addComponent(searchidButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                        .addComponent(searchusernameButton))
+                                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addGroup(jPanel1Layout.createSequentialGroup()
+                                            .addComponent(jLabel18)
+                                            .addGap(58, 58, 58)
+                                            .addComponent(idsearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                            .addComponent(jLabel19)
+                                            .addGap(74, 74, 74)
+                                            .addComponent(usernamesearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 92, Short.MAX_VALUE))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addGap(154, 154, 154)
+                                .addComponent(listallemployeesButton)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addComponent(jLabel20)
@@ -462,18 +800,18 @@ public class MainPage extends javax.swing.JFrame {
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addComponent(jLabel24)
                                 .addGap(79, 79, 79)
-                                .addComponent(resultpasswordfield2, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGap(210, 210, 210)
-                                .addComponent(updatempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(225, 225, 225)
-                        .addComponent(resetButton)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jLabel26)
-                        .addGap(121, 121, 121)
-                        .addComponent(resultrolefield1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(87, 87, 87))
+                                .addComponent(resultpasswordfield2, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(showpasswordButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel55)
+                .addGap(16, 16, 16))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addComponent(deleteempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(updatempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(24, 24, 24))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -502,16 +840,28 @@ public class MainPage extends javax.swing.JFrame {
                                 .addComponent(jLabel26)
                                 .addComponent(resetButton))
                             .addComponent(resultrolefield1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(54, 54, 54)
+                        .addGap(42, 42, 42)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel23)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(jLabel23)
+                                .addComponent(listallemployeesButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addComponent(resultusername, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(18, 18, 18)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel24)
-                            .addComponent(resultpasswordfield2, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(14, 14, 14)
-                        .addComponent(updatempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addGap(12, 12, 12)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel24)
+                                    .addComponent(resultpasswordfield2, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jLabel55)
+                                    .addComponent(showpasswordButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGap(8, 8, 8)))
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(updatempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(deleteempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel18)
@@ -524,10 +874,389 @@ public class MainPage extends javax.swing.JFrame {
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(searchidButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(searchusernameButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                .addContainerGap(36, Short.MAX_VALUE))
+                .addContainerGap(32, Short.MAX_VALUE))
         );
 
         mainTappedPanel.addTab("Search & Update Employees", new javax.swing.ImageIcon(getClass().getResource("/gui/media/magnifying-glass.png")), jPanel1); // NOI18N
+
+        searchUpdateProducts.setToolTipText("");
+        searchUpdateProducts.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+
+        jLabel27.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel27.setText("Product Id:");
+        searchUpdateProducts.add(jLabel27, new org.netbeans.lib.awtextra.AbsoluteConstraints(43, 81, -1, -1));
+
+        productidsearch1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productidsearch1.setFocusCycleRoot(true);
+        productidsearch1.addActionListener(this::productidsearch1ActionPerformed);
+        searchUpdateProducts.add(productidsearch1, new org.netbeans.lib.awtextra.AbsoluteConstraints(188, 81, 116, -1));
+
+        productsearchidButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton.setText("Search");
+        productsearchidButton.addActionListener(this::productsearchidButtonActionPerformed);
+        searchUpdateProducts.add(productsearchidButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(43, 131, 261, 50));
+
+        resetButton1.setText("Reset");
+        resetButton1.addActionListener(this::resetButton1ActionPerformed);
+        searchUpdateProducts.add(resetButton1, new org.netbeans.lib.awtextra.AbsoluteConstraints(139, 216, -1, -1));
+
+        listallproductsButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        listallproductsButton.setText("List All Products");
+        listallproductsButton.addActionListener(this::listallproductsButtonActionPerformed);
+        searchUpdateProducts.add(listallproductsButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(43, 274, 261, 50));
+
+        jLabel28.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel28.setText("Stock:");
+        searchUpdateProducts.add(jLabel28, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 70, -1, -1));
+
+        productstock.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productstock.addActionListener(this::productstockActionPerformed);
+        searchUpdateProducts.add(productstock, new org.netbeans.lib.awtextra.AbsoluteConstraints(450, 70, 300, -1));
+
+        jLabel29.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel29.setText("Name:");
+        searchUpdateProducts.add(jLabel29, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 20, -1, -1));
+
+        productname.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productname.addActionListener(this::productnameActionPerformed);
+        searchUpdateProducts.add(productname, new org.netbeans.lib.awtextra.AbsoluteConstraints(450, 20, 300, -1));
+
+        jLabel30.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel30.setText("Returned:");
+        searchUpdateProducts.add(jLabel30, new org.netbeans.lib.awtextra.AbsoluteConstraints(790, 68, -1, -1));
+
+        productstockreturned.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productstockreturned.addActionListener(this::productstockreturnedActionPerformed);
+        searchUpdateProducts.add(productstockreturned, new org.netbeans.lib.awtextra.AbsoluteConstraints(884, 65, 65, -1));
+
+        jLabel31.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel31.setText("Damaged:");
+        searchUpdateProducts.add(jLabel31, new org.netbeans.lib.awtextra.AbsoluteConstraints(960, 68, -1, -1));
+
+        productstockdamaged.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productstockdamaged.addActionListener(this::productstockdamagedActionPerformed);
+        searchUpdateProducts.add(productstockdamaged, new org.netbeans.lib.awtextra.AbsoluteConstraints(1060, 65, 65, -1));
+
+        jLabel32.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel32.setText("Description:");
+        searchUpdateProducts.add(jLabel32, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 130, -1, -1));
+
+        description.setColumns(20);
+        description.setRows(5);
+        jScrollPane1.setViewportView(description);
+
+        searchUpdateProducts.add(jScrollPane1, new org.netbeans.lib.awtextra.AbsoluteConstraints(450, 120, 300, -1));
+
+        jLabel33.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel33.setText("Price:");
+        searchUpdateProducts.add(jLabel33, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 280, -1, -1));
+
+        pricetextbox.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        pricetextbox.addActionListener(this::pricetextboxActionPerformed);
+        searchUpdateProducts.add(pricetextbox, new org.netbeans.lib.awtextra.AbsoluteConstraints(450, 280, 86, -1));
+
+        dealtextbox.setEditable(false);
+        dealtextbox.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        dealtextbox.addActionListener(this::dealtextboxActionPerformed);
+        searchUpdateProducts.add(dealtextbox, new org.netbeans.lib.awtextra.AbsoluteConstraints(650, 280, 45, -1));
+
+        jLabel34.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel34.setText("Deal:");
+        searchUpdateProducts.add(jLabel34, new org.netbeans.lib.awtextra.AbsoluteConstraints(580, 280, -1, -1));
+
+        jLabel35.setFont(new java.awt.Font("Noto Sans", 1, 24)); // NOI18N
+        jLabel35.setText("%");
+        searchUpdateProducts.add(jLabel35, new org.netbeans.lib.awtextra.AbsoluteConstraints(710, 280, -1, -1));
+
+        jLabel36.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel36.setText("Min Stock:");
+        searchUpdateProducts.add(jLabel36, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 330, -1, -1));
+
+        minstocktextbox.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        minstocktextbox.addActionListener(this::minstocktextboxActionPerformed);
+        searchUpdateProducts.add(minstocktextbox, new org.netbeans.lib.awtextra.AbsoluteConstraints(450, 330, 86, -1));
+
+        jLabel37.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel37.setText("Max Stock:");
+        searchUpdateProducts.add(jLabel37, new org.netbeans.lib.awtextra.AbsoluteConstraints(580, 330, -1, -1));
+
+        maxstocktextbox.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        maxstocktextbox.addActionListener(this::maxstocktextboxActionPerformed);
+        searchUpdateProducts.add(maxstocktextbox, new org.netbeans.lib.awtextra.AbsoluteConstraints(700, 330, 86, -1));
+
+        jLabel38.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel38.setText("Added Date:");
+        searchUpdateProducts.add(jLabel38, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 380, -1, -1));
+
+        addeddatetextbox.setEditable(false);
+        addeddatetextbox.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addeddatetextbox.addActionListener(this::addeddatetextboxActionPerformed);
+        searchUpdateProducts.add(addeddatetextbox, new org.netbeans.lib.awtextra.AbsoluteConstraints(490, 380, 300, -1));
+
+        jLabel39.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel39.setText("Production Date:");
+        searchUpdateProducts.add(jLabel39, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 440, -1, -1));
+
+        productionday.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productionday.addActionListener(this::productiondayActionPerformed);
+        searchUpdateProducts.add(productionday, new org.netbeans.lib.awtextra.AbsoluteConstraints(480, 440, 49, -1));
+
+        jLabel40.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel40.setText("Expiry Date:");
+        searchUpdateProducts.add(jLabel40, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 490, -1, -1));
+
+        updateProductButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        updateProductButton.setText("Update Product");
+        updateProductButton.addActionListener(this::updateProductButtonActionPerformed);
+        searchUpdateProducts.add(updateProductButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(860, 380, 200, 50));
+
+        deleteProductButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        deleteProductButton.setText("Delete Product");
+        deleteProductButton.addActionListener(this::deleteProductButtonActionPerformed);
+        searchUpdateProducts.add(deleteProductButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(860, 460, 200, 50));
+
+        jLabel1.setText("DD");
+        searchUpdateProducts.add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(490, 420, -1, -1));
+
+        productionmonth.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productionmonth.addActionListener(this::productionmonthActionPerformed);
+        searchUpdateProducts.add(productionmonth, new org.netbeans.lib.awtextra.AbsoluteConstraints(560, 440, 49, -1));
+
+        productonyear.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productonyear.addActionListener(this::productonyearActionPerformed);
+        searchUpdateProducts.add(productonyear, new org.netbeans.lib.awtextra.AbsoluteConstraints(650, 440, 137, -1));
+
+        jLabel2.setText("MM");
+        searchUpdateProducts.add(jLabel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(580, 420, -1, -1));
+
+        jLabel3.setText("YYYY");
+        searchUpdateProducts.add(jLabel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(700, 420, -1, -1));
+
+        expiryday.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        expiryday.addActionListener(this::expirydayActionPerformed);
+        searchUpdateProducts.add(expiryday, new org.netbeans.lib.awtextra.AbsoluteConstraints(480, 490, 49, -1));
+
+        expirymonth.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        expirymonth.addActionListener(this::expirymonthActionPerformed);
+        searchUpdateProducts.add(expirymonth, new org.netbeans.lib.awtextra.AbsoluteConstraints(560, 490, 49, -1));
+
+        expiryyear.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        expiryyear.addActionListener(this::expiryyearActionPerformed);
+        searchUpdateProducts.add(expiryyear, new org.netbeans.lib.awtextra.AbsoluteConstraints(650, 490, 137, -1));
+
+        jLabel41.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel41.setText("Actual Price:");
+        searchUpdateProducts.add(jLabel41, new org.netbeans.lib.awtextra.AbsoluteConstraints(340, 240, -1, -1));
+
+        actualpricetextbox1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        actualpricetextbox1.addActionListener(this::actualpricetextbox1ActionPerformed);
+        searchUpdateProducts.add(actualpricetextbox1, new org.netbeans.lib.awtextra.AbsoluteConstraints(450, 230, 86, -1));
+
+        resolveDamagedButton.setFont(new java.awt.Font("Noto Sans", 1, 14)); // NOI18N
+        resolveDamagedButton.setText("Resolve Damaged");
+        resolveDamagedButton.setToolTipText("");
+        resolveDamagedButton.addActionListener(this::resolveDamagedButtonActionPerformed);
+        searchUpdateProducts.add(resolveDamagedButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(960, 110, 160, 40));
+
+        makespecialofferbutton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        makespecialofferbutton.setText("Make Special Offer");
+        makespecialofferbutton.addActionListener(this::makespecialofferbuttonActionPerformed);
+        searchUpdateProducts.add(makespecialofferbutton, new org.netbeans.lib.awtextra.AbsoluteConstraints(860, 270, 200, 40));
+
+        resolveReturnedButton1.setFont(new java.awt.Font("Noto Sans", 1, 14)); // NOI18N
+        resolveReturnedButton1.setText("Resolve Returned");
+        resolveReturnedButton1.addActionListener(this::resolveReturnedButton1ActionPerformed);
+        searchUpdateProducts.add(resolveReturnedButton1, new org.netbeans.lib.awtextra.AbsoluteConstraints(790, 110, 160, 40));
+
+        mainTappedPanel.addTab("Search & update Products", new javax.swing.ImageIcon(getClass().getResource("/gui/media/products.png")), searchUpdateProducts); // NOI18N
+
+        jLabel42.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel42.setText("Name:");
+
+        addproductname.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductname.addActionListener(this::addproductnameActionPerformed);
+
+        jLabel43.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel43.setText("Stock:");
+
+        addproductstock.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductstock.addActionListener(this::addproductstockActionPerformed);
+
+        jLabel44.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel44.setText("Description:");
+
+        addproductdescription1.setColumns(20);
+        addproductdescription1.setRows(5);
+        jScrollPane2.setViewportView(addproductdescription1);
+
+        jLabel45.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel45.setText("Price:");
+
+        addproductpricetextbox1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductpricetextbox1.addActionListener(this::addproductpricetextbox1ActionPerformed);
+
+        jLabel46.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel46.setText("Max Stock:");
+
+        addproductminstocktextbox1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductminstocktextbox1.addActionListener(this::addproductminstocktextbox1ActionPerformed);
+
+        addproductmaxstocktextbox1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductmaxstocktextbox1.addActionListener(this::addproductmaxstocktextbox1ActionPerformed);
+
+        jLabel47.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel47.setText("Production Date:");
+
+        jLabel48.setText("DD");
+
+        addproductproductionday1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductproductionday1.addActionListener(this::addproductproductionday1ActionPerformed);
+
+        jLabel49.setText("MM");
+
+        addproductproductionmonth1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductproductionmonth1.addActionListener(this::addproductproductionmonth1ActionPerformed);
+
+        jLabel50.setText("YYYY");
+
+        addproductproductonyear1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductproductonyear1.addActionListener(this::addproductproductonyear1ActionPerformed);
+
+        jLabel51.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel51.setText("Expiry Date:");
+
+        addproductexpiryday1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductexpiryday1.addActionListener(this::addproductexpiryday1ActionPerformed);
+
+        addproductexpirymonthh1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductexpirymonthh1.addActionListener(this::addproductexpirymonthh1ActionPerformed);
+
+        addproductexpiryyear1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        addproductexpiryyear1.addActionListener(this::addproductexpiryyear1ActionPerformed);
+
+        addproductButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        addproductButton.setText("Add Product");
+        addproductButton.addActionListener(this::addproductButtonActionPerformed);
+
+        jLabel52.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel52.setText("Min Stock:");
+
+        javax.swing.GroupLayout addproductLayout = new javax.swing.GroupLayout(addproduct);
+        addproduct.setLayout(addproductLayout);
+        addproductLayout.setHorizontalGroup(
+            addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(addproductLayout.createSequentialGroup()
+                .addGap(66, 66, 66)
+                .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(jLabel45, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel52, javax.swing.GroupLayout.Alignment.LEADING))
+                        .addGap(28, 28, 28)
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(addproductLayout.createSequentialGroup()
+                                .addComponent(addproductminstocktextbox1, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 44, Short.MAX_VALUE)
+                                .addComponent(jLabel46)
+                                .addGap(34, 34, 34)
+                                .addComponent(addproductmaxstocktextbox1, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(addproductLayout.createSequentialGroup()
+                                .addComponent(addproductpricetextbox1, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 0, Short.MAX_VALUE))))
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addComponent(jLabel42)
+                        .addGap(57, 57, 57)
+                        .addComponent(addproductname, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addComponent(jLabel43)
+                        .addGap(63, 63, 63)
+                        .addComponent(addproductstock, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addComponent(jLabel44)
+                        .addGap(15, 15, 15)
+                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addGap(150, 150, 150)
+                        .addComponent(jLabel48)
+                        .addGap(72, 72, 72)
+                        .addComponent(jLabel49)
+                        .addGap(96, 96, 96)
+                        .addComponent(jLabel50))
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addComponent(jLabel47)
+                        .addGap(7, 7, 7)
+                        .addComponent(addproductproductionday1, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(31, 31, 31)
+                        .addComponent(addproductproductionmonth1, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(41, 41, 41)
+                        .addComponent(addproductproductonyear1, javax.swing.GroupLayout.PREFERRED_SIZE, 137, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addComponent(jLabel51)
+                        .addGap(45, 45, 45)
+                        .addComponent(addproductexpiryday1, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(31, 31, 31)
+                        .addComponent(addproductexpirymonthh1, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(41, 41, 41)
+                        .addComponent(addproductexpiryyear1, javax.swing.GroupLayout.PREFERRED_SIZE, 137, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addGap(155, 155, 155)
+                        .addComponent(addproductButton, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(167, Short.MAX_VALUE))
+        );
+        addproductLayout.setVerticalGroup(
+            addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(addproductLayout.createSequentialGroup()
+                .addGap(56, 56, 56)
+                .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel42)
+                            .addComponent(addproductname, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(18, 18, 18)
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel43)
+                            .addComponent(addproductstock, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(18, 18, 18)
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(addproductLayout.createSequentialGroup()
+                                .addGap(10, 10, 10)
+                                .addComponent(jLabel44))
+                            .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addGroup(addproductLayout.createSequentialGroup()
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel48)
+                            .addComponent(jLabel49)
+                            .addComponent(jLabel50))
+                        .addGap(2, 2, 2)
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel47)
+                            .addComponent(addproductproductionday1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(addproductproductionmonth1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(addproductproductonyear1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(18, 18, 18)
+                        .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel51)
+                            .addComponent(addproductexpiryday1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(addproductexpirymonthh1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(addproductexpiryyear1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(addproductButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(38, 38, 38)
+                .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel45)
+                    .addComponent(addproductpricetextbox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(32, 32, 32)
+                .addGroup(addproductLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel52)
+                    .addComponent(addproductminstocktextbox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel46)
+                    .addComponent(addproductmaxstocktextbox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(147, Short.MAX_VALUE))
+        );
+
+        mainTappedPanel.addTab("Add New Product", new javax.swing.ImageIcon(getClass().getResource("/gui/media/plus.png")), addproduct); // NOI18N
 
         getContentPane().add(mainTappedPanel, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 60, 1140, 570));
 
@@ -828,6 +1557,562 @@ public class MainPage extends javax.swing.JFrame {
         resetSearchResult();
     }//GEN-LAST:event_resetButtonActionPerformed
 
+    private void listallemployeesButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_listallemployeesButtonActionPerformed
+        new EmployeeListDialog().setVisible(true);
+    }//GEN-LAST:event_listallemployeesButtonActionPerformed
+
+    private void deleteempButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteempButtonActionPerformed
+        Employee currentUser = SystemManager.getInstance().getCurrentUser();
+        if (resultUser == null) {
+            messageDialog("Something Wrong!", "Please search for a user first.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (currentUser.getId() == resultUser.getId()) {
+            messageDialog("Something Wrong!", "You cannot delete your own account.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int opt = javax.swing.JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to delete this employee? This operation cannot be reverted.",
+                "Delete Confirmation",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (opt == JOptionPane.YES_OPTION) {
+            try {
+                SystemManager.getInstance().removeEmployee(resultUser.getId());
+                messageDialog("Success!", "Employee deleted successfully", JOptionPane.INFORMATION_MESSAGE);
+                resetSearchResult();
+            } catch (Exception e) {
+                messageDialog("Something Wrong!", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }//GEN-LAST:event_deleteempButtonActionPerformed
+
+    private void productidsearch1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productidsearch1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productidsearch1ActionPerformed
+
+    private void productsearchidButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButtonActionPerformed
+        resetProductSearchResult();
+
+        int id;
+        try {
+            id = Integer.parseInt(productidsearch1.getText().trim());
+        } catch (NumberFormatException e) {
+            messageDialog("Invalid Input", "Please enter a valid product ID.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            Product product = SystemManager.getInstance().searchProductById(id);
+            if (product == null) {
+                messageDialog("Not Found", String.format("No product with ID %d found.", id), JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            messageDialog("Success!", "Product found!", JOptionPane.INFORMATION_MESSAGE);
+            showProductSearchResult(product);
+        } catch (SecurityException e) {
+            messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            messageDialog("Error", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_productsearchidButtonActionPerformed
+
+    private void resetButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_resetButton1ActionPerformed
+        resetProductSearchResult();
+        productidsearch1.setText("");
+    }//GEN-LAST:event_resetButton1ActionPerformed
+
+    private void listallproductsButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_listallproductsButtonActionPerformed
+        try {
+            new ProductListDialog().setVisible(true);
+        } catch (SecurityException e) {
+            messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            messageDialog("Error", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_listallproductsButtonActionPerformed
+
+    private void productstockActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productstockActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productstockActionPerformed
+
+    private void productnameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productnameActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productnameActionPerformed
+
+    private void productstockreturnedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productstockreturnedActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productstockreturnedActionPerformed
+
+    private void productstockdamagedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productstockdamagedActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productstockdamagedActionPerformed
+
+    private void pricetextboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pricetextboxActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_pricetextboxActionPerformed
+
+    private void dealtextboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_dealtextboxActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_dealtextboxActionPerformed
+
+    private void minstocktextboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_minstocktextboxActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_minstocktextboxActionPerformed
+
+    private void maxstocktextboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_maxstocktextboxActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_maxstocktextboxActionPerformed
+
+    private void addeddatetextboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addeddatetextboxActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addeddatetextboxActionPerformed
+
+    private void productiondayActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productiondayActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productiondayActionPerformed
+
+    private void updateProductButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_updateProductButtonActionPerformed
+        if (resultProduct == null) {
+            messageDialog("No Product Selected", "Please search for a product first.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            String name = productname.getText().trim();
+            String desc = description.getText().trim();
+            int stock = Integer.parseInt(productstock.getText().trim());
+            double price = Double.parseDouble(pricetextbox.getText().trim());
+            long minStock = Long.parseLong(minstocktextbox.getText().trim());
+            long maxStock = Long.parseLong(maxstocktextbox.getText().trim());
+            
+            int prodDay = Integer.parseInt(productionday.getText().trim());
+            int prodMonth = Integer.parseInt(productionmonth.getText().trim());
+            int prodYear = Integer.parseInt(productonyear.getText().trim());
+            
+            int expDay = Integer.parseInt(expiryday.getText().trim());
+            int expMonth = Integer.parseInt(expirymonth.getText().trim());
+            int expYear = Integer.parseInt(expiryyear.getText().trim());
+
+            if (name.isEmpty() || desc.isEmpty()) {
+                messageDialog("Empty Fields", "Please fill all required fields.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Range range = new Range(minStock, maxStock);
+            if (!range.valid()) {
+                messageDialog("Invalid Range", "Min stock must be less than max stock and both must be non-negative.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            LocalDateTime productionDate = LocalDateTime.of(prodYear, prodMonth, prodDay, 0, 0);
+            LocalDateTime expiryDate = LocalDateTime.of(expYear, expMonth, expDay, 0, 0);
+
+            // Date sanity checks
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime hundredYearsAgo = now.minusYears(100);
+            
+            if (productionDate.isBefore(hundredYearsAgo)) {
+                messageDialog("Invalid Date", "Production date cannot be more than 100 years in the past.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            
+            if (productionDate.isAfter(now.plusDays(1))) {
+                messageDialog("Invalid Date", "Production date cannot be in the future.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            
+            if (expiryDate.isBefore(productionDate)) {
+                messageDialog("Invalid Dates", "Expiry date cannot be before production date.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Product updatedProduct = new Product(
+                resultProduct.getId(),
+                stock,
+                resultProduct.getReturnedCounter(),
+                resultProduct.getDamagedCounter(),
+                name,
+                desc,
+                price,
+                resultProduct.getDeal(),
+                range,
+                resultProduct.getAddedDate(),
+                productionDate,
+                expiryDate
+            );
+
+            int opt = JOptionPane.showConfirmDialog(this,
+                    "Confirm updating this product?",
+                    "Update Confirmation",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+            if (opt == JOptionPane.YES_OPTION) {
+                SystemManager.getInstance().updateProduct(resultProduct.getId(), updatedProduct);
+                messageDialog("Success!", "Product updated successfully.", JOptionPane.INFORMATION_MESSAGE);
+                showProductSearchResult(updatedProduct);
+            }
+        } catch (NumberFormatException e) {
+            messageDialog("Invalid Input", "Please enter valid numeric values.", JOptionPane.ERROR_MESSAGE);
+        } catch (SecurityException e) {
+            messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            messageDialog("Error", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_updateProductButtonActionPerformed
+
+    private void deleteProductButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteProductButtonActionPerformed
+        if (resultProduct == null) {
+            messageDialog("No Product Selected", "Please search for a product first.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int opt = JOptionPane.showConfirmDialog(this,
+                String.format("Are you sure you want to delete product '%s' (ID: %d)?\nThis action cannot be undone.", 
+                    resultProduct.getName(), resultProduct.getId()),
+                "Delete Confirmation",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (opt == JOptionPane.YES_OPTION) {
+            try {
+                SystemManager.getInstance().removeProduct(resultProduct.getId());
+                messageDialog("Success!", "Product deleted successfully.", JOptionPane.INFORMATION_MESSAGE);
+                resetProductSearchResult();
+                productidsearch1.setText("");
+            } catch (SecurityException e) {
+                messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                messageDialog("Error", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }//GEN-LAST:event_deleteProductButtonActionPerformed
+
+    private void productionmonthActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productionmonthActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productionmonthActionPerformed
+
+    private void productonyearActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productonyearActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productonyearActionPerformed
+
+    private void expirydayActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_expirydayActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_expirydayActionPerformed
+
+    private void expirymonthActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_expirymonthActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_expirymonthActionPerformed
+
+    private void expiryyearActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_expiryyearActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_expiryyearActionPerformed
+
+    private void actualpricetextbox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_actualpricetextbox1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_actualpricetextbox1ActionPerformed
+
+    private void resolveDamagedButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_resolveDamagedButtonActionPerformed
+        if (resultProduct == null) {
+            messageDialog("No Product Selected", "Please search for a product first.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (resultProduct.getDamagedCounter() == 0) {
+            messageDialog("No Damaged Items", "This product has no damaged items to resolve.", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int opt = JOptionPane.showConfirmDialog(this,
+                String.format("Resolve all %d damaged items for '%s'?\nThis will remove them from the damaged count.", 
+                    resultProduct.getDamagedCounter(), resultProduct.getName()),
+                "Resolve Damaged Items",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+        if (opt == JOptionPane.YES_OPTION) {
+            try {
+                SystemManager.getInstance().resolveDamagedStock(resultProduct.getId());
+                messageDialog("Success!", "Damaged items resolved successfully.", JOptionPane.INFORMATION_MESSAGE);
+                // Refresh the product display
+                Product refreshed = SystemManager.getInstance().searchProductById(resultProduct.getId());
+                if (refreshed != null) {
+                    showProductSearchResult(refreshed);
+                }
+            } catch (SecurityException e) {
+                messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                messageDialog("Error", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }//GEN-LAST:event_resolveDamagedButtonActionPerformed
+
+    private void makespecialofferbuttonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_makespecialofferbuttonActionPerformed
+        if (resultProduct == null) {
+            messageDialog("No Product Selected", "Please search for a product first.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            double deal = Double.parseDouble(dealtextbox.getText().trim());
+            
+            if (deal < 0 || deal > 100) {
+                messageDialog("Invalid Deal", "Deal percentage must be between 0 and 100.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int opt = JOptionPane.showConfirmDialog(this,
+                    String.format("Set %.1f%% discount on '%s'?\nNew price will be: %.2f", 
+                        deal, resultProduct.getName(), resultProduct.getPrice() * (1 - deal/100)),
+                    "Confirm Special Offer",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+            if (opt == JOptionPane.YES_OPTION) {
+                SystemManager.getInstance().setProductDeal(resultProduct.getId(), deal);
+                messageDialog("Success!", "Special offer applied successfully.", JOptionPane.INFORMATION_MESSAGE);
+                // Refresh the product display
+                Product refreshed = SystemManager.getInstance().searchProductById(resultProduct.getId());
+                if (refreshed != null) {
+                    showProductSearchResult(refreshed);
+                }
+            }
+        } catch (NumberFormatException e) {
+            messageDialog("Invalid Input", "Please enter a valid deal percentage.", JOptionPane.ERROR_MESSAGE);
+        } catch (SecurityException e) {
+            messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            messageDialog("Error", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_makespecialofferbuttonActionPerformed
+
+    private void resolveReturnedButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_resolveReturnedButton1ActionPerformed
+        if (resultProduct == null) {
+            messageDialog("No Product Selected", "Please search for a product first.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (resultProduct.getReturnedCounter() == 0) {
+            messageDialog("No Returned Items", "This product has no returned items to resolve.", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int opt = JOptionPane.showConfirmDialog(this,
+                String.format("Resolve all %d returned items for '%s'?\nThis will add them back to stock.", 
+                    resultProduct.getReturnedCounter(), resultProduct.getName()),
+                "Resolve Returned Items",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+        if (opt == JOptionPane.YES_OPTION) {
+            try {
+                SystemManager.getInstance().resolveReturnedStock(resultProduct.getId());
+                messageDialog("Success!", "Returned items resolved and added back to stock.", JOptionPane.INFORMATION_MESSAGE);
+                // Refresh the product display
+                Product refreshed = SystemManager.getInstance().searchProductById(resultProduct.getId());
+                if (refreshed != null) {
+                    showProductSearchResult(refreshed);
+                }
+            } catch (SecurityException e) {
+                messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                messageDialog("Error", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }//GEN-LAST:event_resolveReturnedButton1ActionPerformed
+
+    private void addproductnameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductnameActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductnameActionPerformed
+
+    private void addproductstockActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductstockActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductstockActionPerformed
+
+    private void addproductpricetextbox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductpricetextbox1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductpricetextbox1ActionPerformed
+
+    private void addproductminstocktextbox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductminstocktextbox1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductminstocktextbox1ActionPerformed
+
+    private void addproductmaxstocktextbox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductmaxstocktextbox1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductmaxstocktextbox1ActionPerformed
+
+    private void addproductproductionday1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductproductionday1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductproductionday1ActionPerformed
+
+    private void addproductproductionmonth1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductproductionmonth1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductproductionmonth1ActionPerformed
+
+    private void addproductproductonyear1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductproductonyear1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductproductonyear1ActionPerformed
+
+    private void addproductexpiryday1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductexpiryday1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductexpiryday1ActionPerformed
+
+    private void addproductexpirymonthh1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductexpirymonthh1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductexpirymonthh1ActionPerformed
+
+    private void addproductexpiryyear1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductexpiryyear1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_addproductexpiryyear1ActionPerformed
+
+    private void addproductButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addproductButtonActionPerformed
+        Employee user = SystemManager.getInstance().getCurrentUser();
+        if (user.getRole() != EmployeeRole.INVENTORY)
+            return;
+
+        String name = addproductname.getText().trim();
+        String stockStr = addproductstock.getText().trim();
+        String desc = addproductdescription1.getText().trim();
+        String priceStr = addproductpricetextbox1.getText().trim();
+        String minStockStr = addproductminstocktextbox1.getText().trim();
+        String maxStockStr = addproductmaxstocktextbox1.getText().trim();
+        String prodDayStr = addproductproductionday1.getText().trim();
+        String prodMonthStr = addproductproductionmonth1.getText().trim();
+        String prodYearStr = addproductproductonyear1.getText().trim();
+        String expDayStr = addproductexpiryday1.getText().trim();
+        String expMonthStr = addproductexpirymonthh1.getText().trim();
+        String expYearStr = addproductexpiryyear1.getText().trim();
+
+        if (name.isEmpty() || stockStr.isEmpty() || desc.isEmpty() || priceStr.isEmpty() ||
+            minStockStr.isEmpty() || maxStockStr.isEmpty() ||
+            prodDayStr.isEmpty() || prodMonthStr.isEmpty() || prodYearStr.isEmpty() ||
+            expDayStr.isEmpty() || expMonthStr.isEmpty() || expYearStr.isEmpty()) {
+            messageDialog("Empty Fields", "Please fill all required fields.", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            int stock = Integer.parseInt(stockStr);
+            double price = Double.parseDouble(priceStr);
+            long minStock = Long.parseLong(minStockStr);
+            long maxStock = Long.parseLong(maxStockStr);
+            int prodDay = Integer.parseInt(prodDayStr);
+            int prodMonth = Integer.parseInt(prodMonthStr);
+            int prodYear = Integer.parseInt(prodYearStr);
+            int expDay = Integer.parseInt(expDayStr);
+            int expMonth = Integer.parseInt(expMonthStr);
+            int expYear = Integer.parseInt(expYearStr);
+
+            if (stock < 0) {
+                messageDialog("Invalid Input", "Stock cannot be negative.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (price < 0) {
+                messageDialog("Invalid Input", "Price cannot be negative.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Range range = new Range(minStock, maxStock);
+            if (!range.valid()) {
+                messageDialog("Invalid Range", "Min stock must be less than max stock and both must be non-negative.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            LocalDateTime productionDate = LocalDateTime.of(prodYear, prodMonth, prodDay, 0, 0);
+            LocalDateTime expiryDate = LocalDateTime.of(expYear, expMonth, expDay, 0, 0);
+
+            // Date sanity checks
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime hundredYearsAgo = now.minusYears(100);
+            
+            if (productionDate.isBefore(hundredYearsAgo)) {
+                messageDialog("Invalid Date", "Production date cannot be more than 100 years in the past.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            
+            if (productionDate.isAfter(now.plusDays(1))) {
+                messageDialog("Invalid Date", "Production date cannot be in the future.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (expiryDate.isBefore(productionDate)) {
+                messageDialog("Invalid Dates", "Expiry date cannot be before production date.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Product newProduct = new Product(
+                    stock,
+                    name,
+                    desc,
+                    price,
+                    range,
+                    productionDate,
+                    expiryDate
+            );
+
+            SystemManager.getInstance().addProduct(newProduct);
+            messageDialog("Success!", String.format("Product added with ID %d.", newProduct.getId()), JOptionPane.INFORMATION_MESSAGE);
+            
+            // Clear the form after successful addition
+            addproductname.setText("");
+            addproductstock.setText("");
+            addproductdescription1.setText("");
+            addproductpricetextbox1.setText("");
+            addproductminstocktextbox1.setText("");
+            addproductmaxstocktextbox1.setText("");
+            addproductproductionday1.setText("");
+            addproductproductionmonth1.setText("");
+            addproductproductonyear1.setText("");
+            addproductexpiryday1.setText("");
+            addproductexpirymonthh1.setText("");
+            addproductexpiryyear1.setText("");
+
+        } catch (NumberFormatException e) {
+            messageDialog("Invalid Input", "Please enter valid numeric values for stock, price, and dates.", JOptionPane.ERROR_MESSAGE);
+        } catch (java.time.DateTimeException e) {
+            messageDialog("Invalid Date", "Please enter valid date values.", JOptionPane.ERROR_MESSAGE);
+        } catch (SecurityException e) {
+            messageDialog("Access Denied", e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            messageDialog("Something Wrong!", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_addproductButtonActionPerformed
+
+    private void showpasswordButtonshowpasswordhandler(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_showpasswordButtonshowpasswordhandler
+        passwordfield.setEchoChar((char) 0);
+    }//GEN-LAST:event_showpasswordButtonshowpasswordhandler
+
+    private void showpasswordButtonhidepasswordhandler(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_showpasswordButtonhidepasswordhandler
+        passwordfield.setEchoChar('*');
+    }//GEN-LAST:event_showpasswordButtonhidepasswordhandler
+
+    private void showpasswordButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showpasswordButtonActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_showpasswordButtonActionPerformed
+
+    private void showpasswordButton1showpasswordhandler(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_showpasswordButton1showpasswordhandler
+        passwordfield1.setEchoChar((char) 0);
+    }//GEN-LAST:event_showpasswordButton1showpasswordhandler
+
+    private void showpasswordButton1hidepasswordhandler(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_showpasswordButton1hidepasswordhandler
+        passwordfield1.setEchoChar('*');
+    }//GEN-LAST:event_showpasswordButton1hidepasswordhandler
+
+    private void showpasswordButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showpasswordButton1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_showpasswordButton1ActionPerformed
+
+    private void showpasswordButton2showpasswordhandler(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_showpasswordButton2showpasswordhandler
+        resultpasswordfield2.setEchoChar((char) 0);
+    }//GEN-LAST:event_showpasswordButton2showpasswordhandler
+
+    private void showpasswordButton2hidepasswordhandler(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_showpasswordButton2hidepasswordhandler
+        resultpasswordfield2.setEchoChar('*');
+    }//GEN-LAST:event_showpasswordButton2hidepasswordhandler
+
+    private void showpasswordButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showpasswordButton2ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_showpasswordButton2ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -854,13 +2139,37 @@ public class MainPage extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JTextField actualpricetextbox1;
+    private javax.swing.JTextField addeddatetextbox;
     private javax.swing.JPanel addemp;
     private javax.swing.JButton addempButton;
+    private javax.swing.JPanel addproduct;
+    private javax.swing.JButton addproductButton;
+    private javax.swing.JTextArea addproductdescription1;
+    private javax.swing.JTextField addproductexpiryday1;
+    private javax.swing.JTextField addproductexpirymonthh1;
+    private javax.swing.JTextField addproductexpiryyear1;
+    private javax.swing.JTextField addproductmaxstocktextbox1;
+    private javax.swing.JTextField addproductminstocktextbox1;
+    private javax.swing.JTextField addproductname;
+    private javax.swing.JTextField addproductpricetextbox1;
+    private javax.swing.JTextField addproductproductionday1;
+    private javax.swing.JTextField addproductproductionmonth1;
+    private javax.swing.JTextField addproductproductonyear1;
+    private javax.swing.JTextField addproductstock;
     private javax.swing.JTextField datefield;
+    private javax.swing.JTextField dealtextbox;
+    private javax.swing.JButton deleteProductButton;
+    private javax.swing.JButton deleteempButton;
+    private javax.swing.JTextArea description;
     private javax.swing.JTextField emailfield;
     private javax.swing.JTextField emailfield1;
+    private javax.swing.JTextField expiryday;
+    private javax.swing.JTextField expirymonth;
+    private javax.swing.JTextField expiryyear;
     private javax.swing.JTextField idfield;
     private javax.swing.JTextField idsearch;
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel11;
     private javax.swing.JLabel jLabel12;
@@ -871,6 +2180,7 @@ public class MainPage extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel17;
     private javax.swing.JLabel jLabel18;
     private javax.swing.JLabel jLabel19;
+    private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel20;
     private javax.swing.JLabel jLabel21;
     private javax.swing.JLabel jLabel22;
@@ -878,23 +2188,73 @@ public class MainPage extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel24;
     private javax.swing.JLabel jLabel25;
     private javax.swing.JLabel jLabel26;
+    private javax.swing.JLabel jLabel27;
+    private javax.swing.JLabel jLabel28;
+    private javax.swing.JLabel jLabel29;
+    private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel30;
+    private javax.swing.JLabel jLabel31;
+    private javax.swing.JLabel jLabel32;
+    private javax.swing.JLabel jLabel33;
+    private javax.swing.JLabel jLabel34;
+    private javax.swing.JLabel jLabel35;
+    private javax.swing.JLabel jLabel36;
+    private javax.swing.JLabel jLabel37;
+    private javax.swing.JLabel jLabel38;
+    private javax.swing.JLabel jLabel39;
     private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel40;
+    private javax.swing.JLabel jLabel41;
+    private javax.swing.JLabel jLabel42;
+    private javax.swing.JLabel jLabel43;
+    private javax.swing.JLabel jLabel44;
+    private javax.swing.JLabel jLabel45;
+    private javax.swing.JLabel jLabel46;
+    private javax.swing.JLabel jLabel47;
+    private javax.swing.JLabel jLabel48;
+    private javax.swing.JLabel jLabel49;
     private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel50;
+    private javax.swing.JLabel jLabel51;
+    private javax.swing.JLabel jLabel52;
+    private javax.swing.JLabel jLabel53;
+    private javax.swing.JLabel jLabel54;
+    private javax.swing.JLabel jLabel55;
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
     private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JButton listallemployeesButton;
+    private javax.swing.JButton listallproductsButton;
     private javax.swing.JLabel logoutLable;
     private javax.swing.JTabbedPane mainTappedPanel;
+    private javax.swing.JButton makespecialofferbutton;
+    private javax.swing.JTextField maxstocktextbox;
+    private javax.swing.JTextField minstocktextbox;
     private javax.swing.JTextField namefield;
     private javax.swing.JTextField namefield1;
     private javax.swing.JPasswordField passwordfield;
     private javax.swing.JPasswordField passwordfield1;
     private javax.swing.JTextField phonefield;
     private javax.swing.JTextField phonefield1;
+    private javax.swing.JTextField pricetextbox;
+    private javax.swing.JTextField productidsearch1;
+    private javax.swing.JTextField productionday;
+    private javax.swing.JTextField productionmonth;
+    private javax.swing.JTextField productname;
+    private javax.swing.JTextField productonyear;
+    private javax.swing.JButton productsearchidButton;
+    private javax.swing.JTextField productstock;
+    private javax.swing.JTextField productstockdamaged;
+    private javax.swing.JTextField productstockreturned;
     private javax.swing.JPanel profilePanel;
     private javax.swing.JButton resetButton;
+    private javax.swing.JButton resetButton1;
+    private javax.swing.JButton resolveDamagedButton;
+    private javax.swing.JButton resolveReturnedButton1;
     private javax.swing.JTextField resultdatefield1;
     private javax.swing.JTextField resultemail;
     private javax.swing.JTextField resultname;
@@ -904,9 +2264,14 @@ public class MainPage extends javax.swing.JFrame {
     private javax.swing.JTextField resultusername;
     private javax.swing.JTextField rolefield;
     private javax.swing.JComboBox<String> roleselector;
+    private javax.swing.JPanel searchUpdateProducts;
     private javax.swing.JButton searchidButton;
     private javax.swing.JButton searchusernameButton;
+    private javax.swing.JButton showpasswordButton;
+    private javax.swing.JButton showpasswordButton1;
+    private javax.swing.JButton showpasswordButton2;
     private javax.swing.JButton updateButton;
+    private javax.swing.JButton updateProductButton;
     private javax.swing.JButton updatempButton;
     private javax.swing.JTextField usernamefield;
     private javax.swing.JTextField usernamefield1;
