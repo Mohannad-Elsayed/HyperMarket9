@@ -55,6 +55,15 @@ class OrderManager {
         this.remove(order);
     }
 
+    public boolean productInActiveOrder(int id) {
+        for (Order o : this.listAll())
+            for (OrderItem oi : o.getOrderItems())
+                if (oi.getProductId() == id)
+                    return true;
+
+        return false;
+    }
+
     public ArrayList<Order> listAll() {
         ArrayList<Order> ret = new ArrayList<Order>();
         for (Savable obj : repo.listAll()) if (obj instanceof Order e) {
@@ -68,7 +77,7 @@ class OrderManager {
     }
 
     public ArrayList<Order> searchByName(String name) {
-        return null;
+        return new ArrayList<Order>();
     }
 
     public void flush() {

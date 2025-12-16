@@ -146,6 +146,10 @@ public class SystemManager {
         return alerts;
     }
 
+    public boolean productInActiveOrder(int id) {
+        return orderManager.productInActiveOrder(id);
+    }
+
     // ====== Sales functionalities ======
     public Order createOrder(ArrayList<OrderItem> cart) {
         checkPermission(EmployeeRole.SALES);

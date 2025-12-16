@@ -2316,6 +2316,11 @@ public class MainPage extends javax.swing.JFrame {
             messageDialog("No Product Selected", "Please search for a product first.", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        
+        if (SystemManager.getInstance().productInActiveOrder(resultProduct.getId())) {
+            messageDialog("Couldn't delete!", "Product currently in an active order. You may delete order first.", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
         int opt = JOptionPane.showConfirmDialog(this,
                 String.format("Are you sure you want to delete product '%s' (ID: %d)?\nThis action cannot be undone.", 

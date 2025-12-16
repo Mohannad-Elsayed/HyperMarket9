@@ -9,4 +9,11 @@ public abstract class Config {
 
     public static final String CSV_DELIMITER = ",";
     public static final String RANGE_CSV_DELIMITER = "!";
+
+    public static String sanitize(String input) {
+        String sanitized = input.replace(",", "");
+        sanitized = sanitized.replace("\n", " ");
+        sanitized = sanitized.replace("\t", " ");
+        return sanitized;
+    }
 }

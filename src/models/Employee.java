@@ -63,12 +63,12 @@ public class Employee extends User implements Savable, Identifiable {
     @Override
     public String toFile() {
         return super.getId() +                          Config.CSV_DELIMITER +
-                super.getName() +                       Config.CSV_DELIMITER +
-                super.getEmail() +                      Config.CSV_DELIMITER +
-                super.getPhone() +                      Config.CSV_DELIMITER +
-                super.getUserName() +                   Config.CSV_DELIMITER +
-                super.getPassword() +                   Config.CSV_DELIMITER +
-                super.getRegisterDate().toString() +    Config.CSV_DELIMITER +
-                role.toString();
+                Config.sanitize(super.getName()) +      Config.CSV_DELIMITER +
+                Config.sanitize(super.getEmail()) +     Config.CSV_DELIMITER +
+                Config.sanitize(super.getPhone()) +     Config.CSV_DELIMITER +
+                Config.sanitize(super.getUserName()) +  Config.CSV_DELIMITER +
+                Config.sanitize(super.getPassword()) +  Config.CSV_DELIMITER +
+                Config.sanitize(super.getRegisterDate().toString()) + Config.CSV_DELIMITER +
+                Config.sanitize(role.toString());
     }
 }

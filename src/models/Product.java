@@ -149,8 +149,8 @@ public class Product implements Savable, Identifiable {
         this.stock +                                Config.CSV_DELIMITER +
         this.returnedCounter +                      Config.CSV_DELIMITER +
         this.damagedCounter +                       Config.CSV_DELIMITER +
-        this.name +                                 Config.CSV_DELIMITER +
-        this.description +                          Config.CSV_DELIMITER +
+        Config.sanitize(this.name) +                Config.CSV_DELIMITER +
+        Config.sanitize(this.description) +         Config.CSV_DELIMITER +
         this.price +                                Config.CSV_DELIMITER +
         this.deal +                                 Config.CSV_DELIMITER +
         this.recommendedQuantityRange.toFile() +    Config.CSV_DELIMITER +

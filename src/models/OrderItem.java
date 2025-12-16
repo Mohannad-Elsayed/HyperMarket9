@@ -56,9 +56,10 @@ public class OrderItem implements Savable {
 
     @Override
     public String toFile() {
-        return id +             Config.CSV_DELIMITER +
-                productId +     Config.CSV_DELIMITER +
-                productPrice +  Config.CSV_DELIMITER +
+        return id +            Config.CSV_DELIMITER +
+                productId +    Config.CSV_DELIMITER +
+                productPrice + Config.CSV_DELIMITER +
                 quantity;
     }
+
 }
