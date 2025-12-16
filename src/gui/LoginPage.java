@@ -13,6 +13,8 @@ public class LoginPage extends javax.swing.JFrame {
      */
     public LoginPage() {
         initComponents();
+        setResizable(false);
+        pack();
         setLocationRelativeTo(null); // middle of the screen
     }
 
@@ -40,26 +42,33 @@ public class LoginPage extends javax.swing.JFrame {
         setName("loginPage"); // NOI18N
         setPreferredSize(new java.awt.Dimension(600, 450));
         setResizable(false);
+        getContentPane().setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         jLabel1.setFont(new java.awt.Font("URW Gothic", 1, 36)); // NOI18N
         jLabel1.setForeground(new java.awt.Color(0, 0, 204));
-        jLabel1.setText("Welcom... Please Log in:");
+        jLabel1.setText("Welcome... Please Log in:");
+        getContentPane().add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(70, 50, -1, -1));
 
         jlabel3.setFont(new java.awt.Font("Noto Sans", 0, 18)); // NOI18N
         jlabel3.setText("Password:");
+        getContentPane().add(jlabel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(69, 241, -1, -1));
 
         jlabel4.setFont(new java.awt.Font("Noto Sans", 0, 18)); // NOI18N
         jlabel4.setText("User Name:");
+        getContentPane().add(jlabel4, new org.netbeans.lib.awtextra.AbsoluteConstraints(69, 173, -1, -1));
 
         loginButton.setBackground(new java.awt.Color(204, 204, 255));
         loginButton.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
         loginButton.setText("Login");
         loginButton.addActionListener(this::loginButtonActionPerformed);
+        getContentPane().add(loginButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(217, 350, 165, 37));
 
         usernameText.setFont(new java.awt.Font("Noto Sans", 0, 14)); // NOI18N
         usernameText.setText("moha");
+        getContentPane().add(usernameText, new org.netbeans.lib.awtextra.AbsoluteConstraints(207, 170, 245, 33));
 
         passwordField.setText("12345");
+        getContentPane().add(passwordField, new org.netbeans.lib.awtextra.AbsoluteConstraints(207, 240, 245, 33));
 
         showpasswordButton.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mousePressed(java.awt.event.MouseEvent evt) {
@@ -70,71 +79,18 @@ public class LoginPage extends javax.swing.JFrame {
             }
         });
         showpasswordButton.addActionListener(this::showpasswordButtonActionPerformed);
+        getContentPane().add(showpasswordButton, new org.netbeans.lib.awtextra.AbsoluteConstraints(452, 301, 20, 20));
 
         jLabel2.setText("Show Password");
-
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(69, 69, 69)
-                        .addComponent(jlabel3)
-                        .addGap(51, 51, 51)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(usernameText, javax.swing.GroupLayout.PREFERRED_SIZE, 245, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(passwordField, javax.swing.GroupLayout.PREFERRED_SIZE, 245, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addComponent(showpasswordButton, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jLabel2))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(217, 217, 217)
-                        .addComponent(loginButton, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(96, 96, 96)
-                        .addComponent(jLabel1)))
-                .addContainerGap(28, Short.MAX_VALUE))
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addGroup(layout.createSequentialGroup()
-                    .addGap(69, 69, 69)
-                    .addComponent(jlabel4)
-                    .addContainerGap(431, Short.MAX_VALUE)))
-        );
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(47, 47, 47)
-                .addComponent(jLabel1)
-                .addGap(79, 79, 79)
-                .addComponent(usernameText, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(37, 37, 37)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jlabel3)
-                    .addComponent(passwordField, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(28, 28, 28)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(showpasswordButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.TRAILING))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 29, Short.MAX_VALUE)
-                .addComponent(loginButton, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(69, 69, 69))
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addGroup(layout.createSequentialGroup()
-                    .addGap(173, 173, 173)
-                    .addComponent(jlabel4)
-                    .addContainerGap(257, Short.MAX_VALUE)))
-        );
+        getContentPane().add(jLabel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(478, 303, -1, -1));
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
-    void messageDialog(String title, String message, boolean warning) {
-        int icon = warning ? javax.swing.JOptionPane.WARNING_MESSAGE : javax.swing.JOptionPane.ERROR_MESSAGE;
-        javax.swing.JOptionPane.showMessageDialog(this,
-                    message,
-                    title,
-                    icon);
+    void messageDialog(String title, String message, int type) {
+        JOptionPane.showMessageDialog(this,
+                message,
+                title,
+                type);
     }
     private void showpasswordButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showpasswordButtonActionPerformed
         // TODO add your handling code here:
@@ -154,20 +110,23 @@ public class LoginPage extends javax.swing.JFrame {
         username = username.trim();
 
         if (username.isEmpty() || pass.isEmpty()) {
-            messageDialog("Empty Fields" , "Please enter both username and password.", true);
+            messageDialog("Empty Fields" , "Please enter both username and password.", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         try {
             SystemManager.getInstance().login(username, pass);
-            javax.swing.JOptionPane.showMessageDialog(this,
-                    "Welcome Back " + SystemManager.getInstance().getCurrentUser().getName() + ".",
+
+            messageDialog(
                     "Login Successful",
-                    JOptionPane.INFORMATION_MESSAGE);
+                    "Welcome Back " + SystemManager.getInstance().getCurrentUser().getName() + ".",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
             this.dispose();
             new MainPage().setVisible(true);
         } catch (Exception e) {
-            messageDialog("Login Failed", e.getMessage(), false);
+            messageDialog("Login Failed", e.getMessage(), JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_loginButtonActionPerformed
 

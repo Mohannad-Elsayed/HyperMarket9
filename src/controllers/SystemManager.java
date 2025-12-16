@@ -15,7 +15,7 @@ public class SystemManager {
     private static final SystemManager instance = new SystemManager();
 
     private SystemManager() {}
-    public static SystemManager getInstance() { return instance; }
+    public static SystemManager getInstance() { IdManager.setLast(); return instance; }
 
     public void login(String userName, String password) {
         currentUser = null;
@@ -81,7 +81,7 @@ public class SystemManager {
         return employeeManager.searchById(id);
     }
 
-    public ArrayList<Employee> searchEmployeeByUsername(String userName) {
+    public Employee searchEmployeeByUsername(String userName) {
         checkPermission(EmployeeRole.ADMIN);
         return employeeManager.searchByUserName(userName);
     }

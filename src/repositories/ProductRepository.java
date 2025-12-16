@@ -17,6 +17,9 @@ public class ProductRepository extends BaseRepository {
     }
 
     @Override
+    public Savable searchByUserName(String userName) { return null; }
+    
+    @Override
     public ArrayList<Savable> searchByName(String name) {
         ArrayList<Savable> ret = new ArrayList<Savable>();
         for (Savable s : items) {

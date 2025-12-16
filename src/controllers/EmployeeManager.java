@@ -73,12 +73,8 @@ class EmployeeManager {
         return (Employee) repo.searchById(id);
     }
 
-    public ArrayList<Employee> searchByUserName(String userName) {
-        ArrayList<Savable> data = repo.searchByName(userName);
-        ArrayList<Employee> ret = new ArrayList<Employee>();
-        for (Savable s : data)
-            ret.add((Employee) s);
-        return ret;
+    public Employee searchByUserName(String userName) {
+        return repo.searchByUserName(userName);
     }
 
     public void flush() {

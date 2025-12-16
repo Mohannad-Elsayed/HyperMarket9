@@ -16,6 +16,8 @@ public class OrderRepository extends BaseRepository {
         return (Savable) Order.toObject(line);
     }
 
+    @Override
+    public Savable searchByUserName(String userName) { return null; }
 
     @Override
     public ArrayList<Savable> searchByName(String name) {

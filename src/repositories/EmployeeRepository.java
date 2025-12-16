@@ -16,14 +16,16 @@ public class EmployeeRepository extends BaseRepository {
     }
 
     @Override
-    public ArrayList<Savable> searchByName(String userName) {
-        ArrayList<Savable> ret = new ArrayList<Savable>();
+    public ArrayList<Savable> searchByName(String name) { return null; }
+
+    @Override
+    public Employee searchByUserName(String userName) {
         for (Savable s : items) {
             Employee e = (Employee) s;
-            if (e.getName().equals(userName)) {
-                ret.add(e);
+            if (e.getUserName().equals(userName)) {
+                return e;
             }
         }
-        return ret;
+        return null;
     }
 }

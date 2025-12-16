@@ -92,8 +92,7 @@ public abstract class BaseRepository implements Editable {
         try {
             fileManager.flushFile(lines);
         } catch (Exception e) {
-            // TODO: handle exception
-            IO.println(e);
+            throw new RuntimeException("Error saving to file: " + filePath);
         }
     }
 
