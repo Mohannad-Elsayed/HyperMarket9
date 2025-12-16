@@ -12,7 +12,7 @@ class EmployeeManager {
 
     public EmployeeManager() {}
 
-    public Employee verify(String userName, String password) throws SecurityException {
+    public Employee verify(String userName, String password) {
         for (Savable obj : repo.listAll()) if (obj instanceof Employee e) {
             if (e.getUserName().equals(userName)) {
                 if (e.getPassword().equals(password)) {
@@ -25,7 +25,7 @@ class EmployeeManager {
         throw new SecurityException("User not found.");
     }
 
-    public void add(Employee u) throws IllegalArgumentException {
+    public void add(Employee u) {
         for (Savable obj : repo.listAll()) if (obj instanceof Employee e) {
             if (e.getUserName().equals(u.getUserName())) {
                 throw new IllegalArgumentException("User with the same username already exist.");
@@ -48,7 +48,7 @@ class EmployeeManager {
         repo.remove(e);
     }
 
-    public void update(int id, Employee after) throws IllegalArgumentException {
+    public void update(int id, Employee after) {
         Employee before = (Employee) repo.searchById(id);
         if (before == null)
             throw new IllegalArgumentException(String.format("Employee with Id: %d doesn't exist.", id));

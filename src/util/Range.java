@@ -8,7 +8,7 @@ import interfaces.Savable;
 public class Range implements Savable {
     private final long min, max;
 
-    public Range(long min, long max) throws IllegalArgumentException {
+    public Range(long min, long max) {
         this.max = max;
         this.min = min;
     }

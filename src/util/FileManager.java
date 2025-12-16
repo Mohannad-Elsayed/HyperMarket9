@@ -1,6 +1,8 @@
 package util;
 
+import javax.management.RuntimeErrorException;
 import java.io.*;
+import java.security.spec.ECField;
 import java.util.ArrayList;
 
 public class FileManager {
@@ -10,19 +12,19 @@ public class FileManager {
         this.path = path;
     }
 
-    public ArrayList<String> readFile() throws IOException {
+    public ArrayList<String> readFile() {
         return FileManager.readFile(path);
     }
 
-    public void writeLine(String data, boolean append) throws IOException {
+    public void writeLine(String data, boolean append) {
         FileManager.writeLine(path, data, append);
     }
 
-    public void flushFile(ArrayList<String> data) throws IOException {
+    public void flushFile(ArrayList<String> data) {
         FileManager.flushFile(path, data);
     }
 
-    public static ArrayList<String> readFile(String filePath) throws IOException {
+    public static ArrayList<String> readFile(String filePath) {
         ArrayList<String> lines = new ArrayList<>();
         File file = new File(filePath);
         if (!file.exists()) return lines;
@@ -34,29 +36,29 @@ public class FileManager {
                     lines.add(line);
                 }
             }
-        } catch (IOException e) {
-            throw new IOException("Error reading file: " + filePath);
+        } catch (Exception e) {
+            throw new RuntimeException("Error reading file: " + filePath);
         }
         return lines;
     }
 
-    public static void writeLine(String filePath, String data, boolean append) throws IOException {
+    public static void writeLine(String filePath, String data, boolean append) {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath, append))) {
             bw.write(data);
             bw.newLine();
-        } catch (IOException e) {
-            throw new IOException("Error writing to file: " + filePath);
+        } catch (Exception e) {
+            throw new RuntimeException("Error writing to file: " + filePath);
         }
     }
 
-    public static void flushFile(String filePath, ArrayList<String> data) throws IOException {
+    public static void flushFile(String filePath, ArrayList<String> data) {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath, false))) {
             for (String line : data) {
                 bw.write(line);
                 bw.newLine();
             }
-        } catch (IOException e) {
-            throw new IOException("Error writing to file: " + filePath);
+        } catch (Exception e) {
+            throw new RuntimeException("Error writing to file: " + filePath);
         }
     }
 }

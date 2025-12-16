@@ -12,7 +12,7 @@ class ProductManager {
     public static final ProductRepository repo = new ProductRepository();
     ProductManager() {}
 
-    public void add(Product product) throws IllegalArgumentException {
+    public void add(Product product) {
         for (Savable obj : repo.listAll()) if (obj instanceof Product p) {
                 if (product.getId() == p.getId())
                     throw new IllegalArgumentException("Duplicate product found. Please update product instead.");
@@ -39,11 +39,11 @@ class ProductManager {
         repo.remove(product);
     }
 
-    public void update(int id, Product after) throws IllegalArgumentException {
+    public void update(int id, Product after) {
         repo.update(id, after);
     }
 
-    public void setDeal(int id, double dealPercentage) throws IllegalArgumentException {
+    public void setDeal(int id, double dealPercentage) {
         Product before = (Product) repo.searchById(id);
         if (before == null)
             throw new IllegalArgumentException(String.format("Product with Id: %d doesn't exist.", id));
@@ -83,7 +83,7 @@ class ProductManager {
         repo.save();
     }
 
-    public void removeDamagedStock(int id) throws IllegalArgumentException {
+    public void removeDamagedStock(int id) {
         Product p = (Product) repo.searchById(id);
         if (p == null)
             throw new IllegalArgumentException(String.format("Product with Id: %d doesn't exist.", id));
@@ -91,7 +91,7 @@ class ProductManager {
         repo.save();
     }
 
-    public void resolveReturnedStock(int id) throws IllegalArgumentException {
+    public void resolveReturnedStock(int id) {
         Product p = (Product) repo.searchById(id);
         if (p == null)
             throw new IllegalArgumentException(String.format("Product with Id: %d doesn't exist.", id));
@@ -99,7 +99,7 @@ class ProductManager {
         repo.save();
     }
 
-    public void sell(int id, int quantity) throws IllegalArgumentException {
+    public void sell(int id, int quantity) {
         Product p = (Product) repo.searchById(id);
         if (p == null)
             throw new IllegalArgumentException(String.format("Product with Id: %d doesn't exist.", id));

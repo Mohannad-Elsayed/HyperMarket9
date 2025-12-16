@@ -25,7 +25,7 @@ class OrderManager {
     }
 
     // TODO: make system singleton
-    public Order createOrder(ArrayList<OrderItem> cart) throws IllegalArgumentException {
+    public Order createOrder(ArrayList<OrderItem> cart) {
         // validate the whole cart first
         for (OrderItem item : cart) {
             // yes this is not the best way to call the system manager, but fixing it would require a complete system redesign
@@ -44,7 +44,7 @@ class OrderManager {
         return order;
     }
 
-    public void cancelOrder(int id) throws IllegalArgumentException {
+    public void cancelOrder(int id) {
         Order order = (Order) repo.searchById(id);
         if (order == null)
             throw new IllegalArgumentException(String.format("Order with Id: %d can't be found!", id));

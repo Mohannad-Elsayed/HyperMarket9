@@ -1,7 +1,9 @@
 package controllers;
 
 import models.*;
+import util.IdManager;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class SystemManager {
@@ -15,7 +17,7 @@ public class SystemManager {
     private SystemManager() {}
     public static SystemManager getInstance() { return instance; }
 
-    public void login(String userName, String password) throws SecurityException {
+    public void login(String userName, String password) {
         currentUser = null;
         currentUser = employeeManager.verify(userName, password);
         // if the previous line gone well, this is safe
@@ -29,7 +31,7 @@ public class SystemManager {
     public Employee getCurrentUser() { return currentUser; }
 
     // update only name, email, phone: all employees can do it
-    public void updateMyInfo(String name, String email, String phone) throws SecurityException {
+    public void updateMyInfo(String name, String email, String phone) {
         isLoggedIn();
         currentUser.setName(name);
         currentUser.setEmail(email);
@@ -39,7 +41,7 @@ public class SystemManager {
 
     // ====== Admin functionalities ======
     /* update username and password */
-    public void updateMyInfo(String username, String password, String name, String email, String phone) throws SecurityException {
+    public void updateMyInfo(String username, String password, String name, String email, String phone) {
         checkPermission(EmployeeRole.ADMIN);
         updateMyInfo(name, email, phone);
         currentUser.setUserName(username);
@@ -52,7 +54,7 @@ public class SystemManager {
         employeeManager.add(e);
     }
 
-    public void removeEmployee(int id) throws IllegalArgumentException {
+    public void removeEmployee(int id) {
         checkPermission(EmployeeRole.ADMIN);
 
         if (currentUser.getId() == id)
@@ -61,7 +63,7 @@ public class SystemManager {
         employeeManager.remove(id);
     }
 
-    public void updateEmployee(int id, Employee after) throws IllegalArgumentException {
+    public void updateEmployee(int id, Employee after) {
         checkPermission(EmployeeRole.ADMIN);
         if (id != after.getId())
             throw new IllegalArgumentException("Cannot change employee Id.");
@@ -91,7 +93,7 @@ public class SystemManager {
     }
 
     // ====== Inventory methods ======
-    public void addProduct(Product p) throws IllegalArgumentException {
+    public void addProduct(Product p) {
         checkPermission(EmployeeRole.INVENTORY);
         productManager.add(p);
     }
@@ -175,15 +177,16 @@ public class SystemManager {
         employeeManager.flush();
         productManager.flush();
         orderManager.flush();
+        IdManager.flush();
     }
 
     // ====== Helper methods ======
-    private void isLoggedIn() throws SecurityException {
+    private void isLoggedIn() {
         if (currentUser == null)
             throw new SecurityException("Not logged in.");
     }
 
-    private void checkPermission(EmployeeRole... allowedRoles) throws SecurityException {
+    private void checkPermission(EmployeeRole... allowedRoles) {
         isLoggedIn();
 
         EmployeeRole currentRole = currentUser.getRole();

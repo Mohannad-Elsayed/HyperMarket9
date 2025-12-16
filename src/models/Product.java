@@ -80,13 +80,13 @@ public class Product implements Savable, Identifiable {
     public void setDescription(String description) { this.description = description; }
 
     public double getPrice() { return price; }
-    public void setPrice(double price) throws IllegalArgumentException {
+    public void setPrice(double price) {
         if (price < 0.0) throw new IllegalArgumentException("Price cannot be negative.");
         this.price = price;
     }
 
     public double getDeal() { return deal; }
-    public void setDeal(double deal) throws IllegalArgumentException {
+    public void setDeal(double deal) {
         if (deal < 0.0 || deal > 100.0) {
             throw new IllegalArgumentException("Deal must be between 0 and 100.");
         }
@@ -127,7 +127,7 @@ public class Product implements Savable, Identifiable {
     public int getTotalStockCount() {
         return stock;
     }
-    public void setTotalStockCount(int stock) throws IllegalArgumentException {
+    public void setTotalStockCount(int stock) {
         if (stock < 0) throw new IllegalArgumentException("Stock cannot be negative.");
         this.stock = stock;
     }
