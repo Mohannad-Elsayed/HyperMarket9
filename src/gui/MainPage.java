@@ -26,11 +26,44 @@ public class MainPage extends javax.swing.JFrame {
         logoutLable.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         Employee user = SystemManager.getInstance().getCurrentUser();
         welcomLable.setText(String.format("Welcome, %s (%s)", user.getName(), user.getRole().toString()));
+        setupTabVisibility();
         setupProfile();
         setupProductsTab();
         setupEmployeeTabs();
         setupOrdersTab();
         showInventoryNotifications();
+    }
+
+    void setupTabVisibility() {
+        Employee user = SystemManager.getInstance().getCurrentUser();
+        EmployeeRole role = user.getRole();
+
+        // Manage Orders (index 5) - visible to sales only
+        if (role != EmployeeRole.SALES) {
+            mainTappedPanel.remove(orderManager);
+        }
+
+        // Add New Product (index 4) - visible to inventory only
+        if (role != EmployeeRole.INVENTORY) {
+            mainTappedPanel.remove(addproduct);
+        }
+
+        // Manage Products (index 3) - visible to all except admin
+        if (role == EmployeeRole.ADMIN) {
+            mainTappedPanel.remove(searchUpdateProducts);
+        }
+
+        // Manage Employees (index 2) - admin only
+        if (role != EmployeeRole.ADMIN) {
+            mainTappedPanel.remove(jPanel1);
+        }
+
+        // Add new employee (index 1) - admin only
+        if (role != EmployeeRole.ADMIN) {
+            mainTappedPanel.remove(addemp);
+        }
+
+        // Profile (index 0) - always visible, no removal needed
     }
 
     void setupProfile() {
@@ -1100,7 +1133,7 @@ public class MainPage extends javax.swing.JFrame {
                 .addContainerGap(50, Short.MAX_VALUE))
         );
 
-        mainTappedPanel.addTab("Search & Update Employees", new javax.swing.ImageIcon(getClass().getResource("/gui/media/find-my-friend.png")), jPanel1); // NOI18N
+        mainTappedPanel.addTab("Manage Employees", new javax.swing.ImageIcon(getClass().getResource("/gui/media/find-my-friend.png")), jPanel1); // NOI18N
 
         searchUpdateProducts.setToolTipText("");
         searchUpdateProducts.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
@@ -1291,7 +1324,7 @@ public class MainPage extends javax.swing.JFrame {
         resolveReturnedButton1.addActionListener(this::resolveReturnedButton1ActionPerformed);
         searchUpdateProducts.add(resolveReturnedButton1, new org.netbeans.lib.awtextra.AbsoluteConstraints(790, 110, 160, 40));
 
-        mainTappedPanel.addTab("Search & update Products", new javax.swing.ImageIcon(getClass().getResource("/gui/media/loupe.png")), searchUpdateProducts); // NOI18N
+        mainTappedPanel.addTab("Manage Products", new javax.swing.ImageIcon(getClass().getResource("/gui/media/loupe.png")), searchUpdateProducts); // NOI18N
 
         jLabel42.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
         jLabel42.setText("Name:");
@@ -1482,7 +1515,7 @@ public class MainPage extends javax.swing.JFrame {
         mainTappedPanel.addTab("Add New Product", new javax.swing.ImageIcon(getClass().getResource("/gui/media/add-document.png")), addproduct); // NOI18N
 
         jLabel63.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
-        jLabel63.setText("Product Id:");
+        jLabel63.setText("Order Id:");
 
         productidsearch3.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
         productidsearch3.setFocusCycleRoot(true);
@@ -1843,7 +1876,11 @@ public class MainPage extends javax.swing.JFrame {
         
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                SystemManager.getInstance().updateEmployee(user.getId(), newDate);
+                if (user.getRole() == EmployeeRole.ADMIN)
+                    SystemManager.getInstance().updateEmployee(user.getId(), newDate);
+                else {
+                    SystemManager.getInstance().updateMyInfo(newName, newEmail, newPhone);
+                }
                 logOutUtil();
             } catch (Exception e) {
                 messageDialog("Something Wrong!", "Error: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
