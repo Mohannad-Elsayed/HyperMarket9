@@ -9,7 +9,7 @@ import util.*;
 
 public class Product implements Savable, Identifiable {
     private final int id;
-    private int stock;
+    private int stock; // represents the real stock value currently in the system
     private int returnedCounter;
     private int damagedCounter;
     private String name;
@@ -50,7 +50,7 @@ public class Product implements Savable, Identifiable {
         return price * (1.0 - (deal / 100.0));
     }
 
-    public int getStock() { return Math.max(0, stock - damagedCounter - returnedCounter); }
+    public int getStock() { return this.stock; }
 
     public boolean sellProduct(int amount) {
         if (expiryDate.isBefore(LocalDateTime.now()) || getStock() < amount || amount <= 0) {
@@ -61,7 +61,6 @@ public class Product implements Savable, Identifiable {
     }
 
     public void returnItem(int count) {
-        this.stock += count;
         this.returnedCounter += count;
     }
 
@@ -121,14 +120,6 @@ public class Product implements Savable, Identifiable {
     public int getDamagedCounter() { return damagedCounter; }
     public void resolveDamaged() {
         this.damagedCounter = 0;
-    }
-
-    public int getTotalStockCount() {
-        return stock;
-    }
-    public void setTotalStockCount(int stock) {
-        if (stock < 0) throw new IllegalArgumentException("Stock cannot be negative.");
-        this.stock = stock;
     }
 
     public static Savable toObject(String[] data) {

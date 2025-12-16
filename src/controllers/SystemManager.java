@@ -4,6 +4,7 @@ import models.*;
 import util.IdManager;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 public class SystemManager {
@@ -124,7 +125,7 @@ public class SystemManager {
         ArrayList<String> alerts = new ArrayList<>();
 
         for (Product p : productManager.getExpired()) {
-            alerts.add("[EXPIRED] " + p.getName() + " expires on " + p.getExpiryDate().toLocalDate());
+            alerts.add(String.format("[%s] ", p.getExpiryDate().isBefore(LocalDateTime.now()) ? "EXPIRED" : "NEAR EXPIRED") + p.getName() + " expires on " + p.getExpiryDate().toLocalDate());
         }
 
         for (Product p : productManager.getMalStock()) {
