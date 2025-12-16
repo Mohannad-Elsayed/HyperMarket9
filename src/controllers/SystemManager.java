@@ -151,9 +151,19 @@ public class SystemManager {
         return orderManager.createOrder(cart);
     }
 
-    public void cancelOrder(int id) {
+    public void returnOrder(int id) {
         checkPermission(EmployeeRole.SALES);
-        orderManager.cancelOrder(id);
+        orderManager.returnOrder(id);
+    }
+
+    public ArrayList<Order> listOrders() {
+        checkPermission(EmployeeRole.SALES);
+        return orderManager.listAll();
+    }
+
+    public Order searchOrderById(int id) {
+        checkPermission(EmployeeRole.SALES);
+        return orderManager.searchById(id);
     }
 
     // Shared functionalities

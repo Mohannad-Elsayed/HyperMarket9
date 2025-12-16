@@ -50,9 +50,7 @@ public class Product implements Savable, Identifiable {
         return price * (1.0 - (deal / 100.0));
     }
 
-    public int getStock() {
-        return Math.max(0, stock - damagedCounter - returnedCounter);
-    }
+    public int getStock() { return Math.max(0, stock - damagedCounter - returnedCounter); }
 
     public boolean sellProduct(int amount) {
         if (expiryDate.isBefore(LocalDateTime.now()) || getStock() < amount || amount <= 0) {
@@ -63,6 +61,7 @@ public class Product implements Savable, Identifiable {
     }
 
     public void returnItem(int count) {
+        this.stock += count;
         this.returnedCounter += count;
     }
 

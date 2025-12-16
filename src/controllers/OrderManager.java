@@ -44,13 +44,13 @@ class OrderManager {
         return order;
     }
 
-    public void cancelOrder(int id) {
+    public void returnOrder(int id) {
         Order order = (Order) repo.searchById(id);
         if (order == null)
             throw new IllegalArgumentException(String.format("Order with Id: %d can't be found!", id));
 
         for (OrderItem item : order.getOrderItems()) {
-            SystemManager.getInstance().productManager.cancelItem(item);
+            SystemManager.getInstance().productManager.returnItem(item);
         }
         this.remove(order);
     }

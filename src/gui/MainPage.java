@@ -29,6 +29,7 @@ public class MainPage extends javax.swing.JFrame {
         setupProfile();
         setupProductsTab();
         setupEmployeeTabs();
+        setupOrdersTab();
         showInventoryNotifications();
     }
 
@@ -63,6 +64,12 @@ public class MainPage extends javax.swing.JFrame {
 
     // Product currently being viewed/edited
     private Product resultProduct;
+
+    // Order currently being viewed in Search & Return Order tab
+    private Order resultOrder;
+
+    // Current order cart for Make New Order tab
+    private ArrayList<OrderItem> cart = new ArrayList<>();
 
     void setupProductsTab() {
         Employee user = SystemManager.getInstance().getCurrentUser();
@@ -169,6 +176,190 @@ public class MainPage extends javax.swing.JFrame {
         listallemployeesButton.setEnabled(isAdmin);
         deleteempButton.setEnabled(isAdmin);
         showpasswordButton2.setEnabled(isAdmin);
+    }
+
+    void setupOrdersTab() {
+        Employee user = SystemManager.getInstance().getCurrentUser();
+        boolean isSales = (user.getRole() == EmployeeRole.SALES);
+
+        // Add tab change listener to populate orders table when "View All Orders" is selected
+        jTabbedPane1.addChangeListener(e -> {
+            int selectedIndex = jTabbedPane1.getSelectedIndex();
+            String tabTitle = jTabbedPane1.getTitleAt(selectedIndex);
+            if ("View All Orders".equals(tabTitle) && isSales) {
+                populateOrdersTable();
+            }
+        });
+    }
+
+    void populateOrdersTable() {
+        try {
+            ArrayList<Order> orders = SystemManager.getInstance().listOrders();
+            String[] columnNames = {"Order ID", "Items Count", "Total Price"};
+            Object[][] data = new Object[orders.size()][3];
+
+            for (int i = 0; i < orders.size(); i++) {
+                Order order = orders.get(i);
+                data[i][0] = order.getId();
+                data[i][1] = order.getOrderItems().size();
+                data[i][2] = String.format("%.2f", order.getTotalPrice());
+            }
+
+            jTable1.setModel(new javax.swing.table.DefaultTableModel(data, columnNames) {
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return false;
+                }
+            });
+        } catch (Exception e) {
+            messageDialog("Error", "Unable to load orders: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // ====== Make New Order Tab Helper Methods ======
+
+    void resetNewOrderProductView() {
+        productname1.setText("");
+        productstock1.setText("");
+        description1.setText("");
+        actualpricetextbox2.setText("");
+    }
+
+    void showNewOrderProductView(Product product) {
+        productname1.setText(product.getName());
+        productstock1.setText(String.valueOf(product.getStock()));
+        description1.setText(product.getDescription());
+        actualpricetextbox2.setText(String.valueOf(product.getPrice()));
+    }
+
+    void resetNewOrderForm() {
+        productidsearch2.setText("");
+        productidsearch4.setText("");
+        resetNewOrderProductView();
+        cart.clear();
+        updateCartTable();
+    }
+
+    void updateCartTable() {
+        String[] columnNames = {"Product ID", "Product Name", "Quantity", "Total Price"};
+        Object[][] data = new Object[cart.size()][4];
+
+        for (int i = 0; i < cart.size(); i++) {
+            OrderItem item = cart.get(i);
+            Product product = SystemManager.getInstance().searchProductById(item.getProductId());
+            String productName = (product != null) ? product.getName() : "Unknown";
+            data[i][0] = item.getProductId();
+            data[i][1] = productName;
+            data[i][2] = item.getQuantity();
+            data[i][3] = String.format("%.2f", item.getPrice());
+        }
+
+        javax.swing.table.DefaultTableModel model = new javax.swing.table.DefaultTableModel(data, columnNames) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                // Only quantity column (index 2) is editable
+                return column == 2;
+            }
+        };
+
+        jTable2.setModel(model);
+
+        // Add table model listener to handle quantity edits
+        model.addTableModelListener(e -> {
+            if (e.getType() == javax.swing.event.TableModelEvent.UPDATE && e.getColumn() == 2) {
+                int row = e.getFirstRow();
+                handleCartQuantityEdit(row);
+            }
+        });
+    }
+
+    void handleCartQuantityEdit(int row) {
+        if (row < 0 || row >= cart.size()) return;
+
+        try {
+            Object value = jTable2.getValueAt(row, 2);
+            int newQuantity = Integer.parseInt(value.toString().trim());
+
+            if (newQuantity <= 0) {
+                messageDialog("Invalid Quantity", "Quantity must be a positive number.", JOptionPane.ERROR_MESSAGE);
+                updateCartTable();
+                return;
+            }
+
+            OrderItem oldItem = cart.get(row);
+            // Check if the new quantity is available in stock
+            Product product = SystemManager.getInstance().searchProductById(oldItem.getProductId());
+            if (product == null) {
+                messageDialog("Error", "Product no longer exists.", JOptionPane.ERROR_MESSAGE);
+                cart.remove(row);
+                updateCartTable();
+                return;
+            }
+
+            if (newQuantity > product.getStock()) {
+                messageDialog("Insufficient Stock", 
+                    String.format("Only %d units available for %s.", product.getStock(), product.getName()), 
+                    JOptionPane.ERROR_MESSAGE);
+                updateCartTable();
+                return;
+            }
+
+            // Replace with new OrderItem with updated quantity
+            cart.set(row, new OrderItem(product, newQuantity));
+            updateCartTable();
+
+        } catch (NumberFormatException ex) {
+            messageDialog("Invalid Input", "Please enter a valid number for quantity.", JOptionPane.ERROR_MESSAGE);
+            updateCartTable();
+        } catch (Exception ex) {
+            messageDialog("Error", "An error occurred: " + ex.getMessage(), JOptionPane.ERROR_MESSAGE);
+            updateCartTable();
+        }
+    }
+
+    int findCartItemByProductId(int productId) {
+        for (int i = 0; i < cart.size(); i++) {
+            if (cart.get(i).getProductId() == productId) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // ====== Search & Return Order Tab Helper Methods ======
+
+    void displayOrderInTable(Order order) {
+        ArrayList<OrderItem> items = order.getOrderItems();
+        String[] columnNames = {"Product ID", "Product Name", "Quantity", "Total Price"};
+        Object[][] data = new Object[items.size()][4];
+
+        for (int i = 0; i < items.size(); i++) {
+            OrderItem item = items.get(i);
+            Product product = SystemManager.getInstance().searchProductById(item.getProductId());
+            String productName = (product != null) ? product.getName() : "Unknown";
+            data[i][0] = item.getProductId();
+            data[i][1] = productName;
+            data[i][2] = item.getQuantity();
+            data[i][3] = String.format("%.2f", item.getPrice());
+        }
+
+        jTable3.setModel(new javax.swing.table.DefaultTableModel(data, columnNames) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // All cells are read-only
+            }
+        });
+    }
+
+    void clearOrderSearchTable() {
+        String[] columnNames = {"Product ID", "Product Name", "Quantity", "Total Price"};
+        Object[][] data = new Object[0][4];
+        jTable3.setModel(new javax.swing.table.DefaultTableModel(data, columnNames) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        });
     }
 
     void showInventoryNotifications() {
@@ -390,6 +581,40 @@ public class MainPage extends javax.swing.JFrame {
         addproductexpiryyear1 = new javax.swing.JTextField();
         addproductButton = new javax.swing.JButton();
         jLabel52 = new javax.swing.JLabel();
+        orderManager = new javax.swing.JPanel();
+        jTabbedPane1 = new javax.swing.JTabbedPane();
+        jPanel3 = new javax.swing.JPanel();
+        jLabel63 = new javax.swing.JLabel();
+        productidsearch3 = new javax.swing.JTextField();
+        productsearchidButton6 = new javax.swing.JButton();
+        jScrollPane6 = new javax.swing.JScrollPane();
+        jTable3 = new javax.swing.JTable();
+        productsearchidButton7 = new javax.swing.JButton();
+        jPanel4 = new javax.swing.JPanel();
+        jScrollPane3 = new javax.swing.JScrollPane();
+        jTable1 = new javax.swing.JTable();
+        jPanel2 = new javax.swing.JPanel();
+        jLabel56 = new javax.swing.JLabel();
+        productidsearch2 = new javax.swing.JTextField();
+        productsearchidButton1 = new javax.swing.JButton();
+        jLabel57 = new javax.swing.JLabel();
+        productname1 = new javax.swing.JTextField();
+        jLabel58 = new javax.swing.JLabel();
+        productstock1 = new javax.swing.JTextField();
+        jLabel59 = new javax.swing.JLabel();
+        jScrollPane4 = new javax.swing.JScrollPane();
+        description1 = new javax.swing.JTextArea();
+        jLabel60 = new javax.swing.JLabel();
+        actualpricetextbox2 = new javax.swing.JTextField();
+        jScrollPane5 = new javax.swing.JScrollPane();
+        jTable2 = new javax.swing.JTable();
+        jLabel61 = new javax.swing.JLabel();
+        productidsearch4 = new javax.swing.JTextField();
+        jLabel62 = new javax.swing.JLabel();
+        productsearchidButton2 = new javax.swing.JButton();
+        productsearchidButton3 = new javax.swing.JButton();
+        productsearchidButton4 = new javax.swing.JButton();
+        productsearchidButton5 = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
         setTitle("Hyper Market System v1.0");
@@ -515,7 +740,7 @@ public class MainPage extends javax.swing.JFrame {
         jLabel53.setText("Show Password");
         profilePanel.add(jLabel53, new org.netbeans.lib.awtextra.AbsoluteConstraints(620, 420, -1, -1));
 
-        mainTappedPanel.addTab("Profile", new javax.swing.ImageIcon(getClass().getResource("/gui/media/user.png")), profilePanel, ""); // NOI18N
+        mainTappedPanel.addTab("Profile", new javax.swing.ImageIcon(getClass().getResource("/gui/media/man.png")), profilePanel, ""); // NOI18N
 
         jLabel12.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
         jLabel12.setText("Name:");
@@ -648,7 +873,7 @@ public class MainPage extends javax.swing.JFrame {
                 .addContainerGap())
         );
 
-        mainTappedPanel.addTab("Add new employee", new javax.swing.ImageIcon(getClass().getResource("/gui/media/plus.png")), addemp); // NOI18N
+        mainTappedPanel.addTab("Add new employee", new javax.swing.ImageIcon(getClass().getResource("/gui/media/add-user.png")), addemp); // NOI18N
 
         jLabel18.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
         jLabel18.setText("Employee Id:");
@@ -774,12 +999,11 @@ public class MainPage extends javax.swing.JFrame {
                                         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                                             .addComponent(jLabel19)
                                             .addGap(74, 74, 74)
-                                            .addComponent(usernamesearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 92, Short.MAX_VALUE))
+                                            .addComponent(usernamesearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addGap(154, 154, 154)
-                                .addComponent(listallemployeesButton)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                                .addComponent(listallemployeesButton)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addComponent(jLabel20)
@@ -858,7 +1082,6 @@ public class MainPage extends javax.swing.JFrame {
                                     .addComponent(jLabel55)
                                     .addComponent(showpasswordButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addGap(8, 8, 8)))
-                        .addGap(18, 18, 18)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(updatempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(deleteempButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)))
@@ -874,10 +1097,10 @@ public class MainPage extends javax.swing.JFrame {
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(searchidButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(searchusernameButton, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                .addContainerGap(32, Short.MAX_VALUE))
+                .addContainerGap(50, Short.MAX_VALUE))
         );
 
-        mainTappedPanel.addTab("Search & Update Employees", new javax.swing.ImageIcon(getClass().getResource("/gui/media/magnifying-glass.png")), jPanel1); // NOI18N
+        mainTappedPanel.addTab("Search & Update Employees", new javax.swing.ImageIcon(getClass().getResource("/gui/media/find-my-friend.png")), jPanel1); // NOI18N
 
         searchUpdateProducts.setToolTipText("");
         searchUpdateProducts.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
@@ -1068,7 +1291,7 @@ public class MainPage extends javax.swing.JFrame {
         resolveReturnedButton1.addActionListener(this::resolveReturnedButton1ActionPerformed);
         searchUpdateProducts.add(resolveReturnedButton1, new org.netbeans.lib.awtextra.AbsoluteConstraints(790, 110, 160, 40));
 
-        mainTappedPanel.addTab("Search & update Products", new javax.swing.ImageIcon(getClass().getResource("/gui/media/products.png")), searchUpdateProducts); // NOI18N
+        mainTappedPanel.addTab("Search & update Products", new javax.swing.ImageIcon(getClass().getResource("/gui/media/loupe.png")), searchUpdateProducts); // NOI18N
 
         jLabel42.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
         jLabel42.setText("Name:");
@@ -1256,7 +1479,295 @@ public class MainPage extends javax.swing.JFrame {
                 .addContainerGap(147, Short.MAX_VALUE))
         );
 
-        mainTappedPanel.addTab("Add New Product", new javax.swing.ImageIcon(getClass().getResource("/gui/media/plus.png")), addproduct); // NOI18N
+        mainTappedPanel.addTab("Add New Product", new javax.swing.ImageIcon(getClass().getResource("/gui/media/add-document.png")), addproduct); // NOI18N
+
+        jLabel63.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel63.setText("Product Id:");
+
+        productidsearch3.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productidsearch3.setFocusCycleRoot(true);
+        productidsearch3.addActionListener(this::productidsearch3ActionPerformed);
+
+        productsearchidButton6.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton6.setText("Search Order");
+        productsearchidButton6.addActionListener(this::productsearchidButton6ActionPerformed);
+
+        jTable3.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane6.setViewportView(jTable3);
+
+        productsearchidButton7.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton7.setText("Return Order");
+        productsearchidButton7.addActionListener(this::productsearchidButton7ActionPerformed);
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addGap(30, 30, 30)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addGroup(jPanel3Layout.createSequentialGroup()
+                        .addComponent(jLabel63)
+                        .addGap(30, 30, 30)
+                        .addComponent(productidsearch3, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(productsearchidButton6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(93, 93, 93)
+                .addComponent(jScrollPane6, javax.swing.GroupLayout.PREFERRED_SIZE, 627, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(productsearchidButton7, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addGap(25, 25, 25)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(productsearchidButton7, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(jPanel3Layout.createSequentialGroup()
+                            .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(jLabel63)
+                                .addComponent(productidsearch3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGap(37, 37, 37)
+                            .addComponent(productsearchidButton6, javax.swing.GroupLayout.PREFERRED_SIZE, 76, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(jScrollPane6, javax.swing.GroupLayout.PREFERRED_SIZE, 436, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        jTabbedPane1.addTab("Search & Return Order", new javax.swing.ImageIcon(getClass().getResource("/gui/media/loupe.png")), jPanel3); // NOI18N
+
+        jTable1.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane3.setViewportView(jTable1);
+
+        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
+        jPanel4.setLayout(jPanel4Layout);
+        jPanel4Layout.setHorizontalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 1138, Short.MAX_VALUE)
+        );
+        jPanel4Layout.setVerticalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 498, Short.MAX_VALUE)
+        );
+
+        jTabbedPane1.addTab("View All Orders", new javax.swing.ImageIcon(getClass().getResource("/gui/media/sheets.png")), jPanel4); // NOI18N
+
+        jLabel56.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel56.setText("Product Id:");
+
+        productidsearch2.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productidsearch2.setFocusCycleRoot(true);
+        productidsearch2.addActionListener(this::productidsearch2ActionPerformed);
+
+        productsearchidButton1.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton1.setText("Add");
+        productsearchidButton1.addActionListener(this::productsearchidButton1ActionPerformed);
+
+        jLabel57.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel57.setText("Name:");
+
+        productname1.setEditable(false);
+        productname1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productname1.addActionListener(this::productname1ActionPerformed);
+
+        jLabel58.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel58.setText("Stock:");
+
+        productstock1.setEditable(false);
+        productstock1.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productstock1.addActionListener(this::productstock1ActionPerformed);
+
+        jLabel59.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel59.setText("Description:");
+
+        description1.setEditable(false);
+        description1.setColumns(20);
+        description1.setRows(5);
+        jScrollPane4.setViewportView(description1);
+
+        jLabel60.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel60.setText("Price:");
+
+        actualpricetextbox2.setEditable(false);
+        actualpricetextbox2.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        actualpricetextbox2.addActionListener(this::actualpricetextbox2ActionPerformed);
+
+        jTable2.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane5.setViewportView(jTable2);
+
+        jLabel61.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel61.setText("Quantity:");
+
+        productidsearch4.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        productidsearch4.setFocusCycleRoot(true);
+        productidsearch4.addActionListener(this::productidsearch4ActionPerformed);
+
+        jLabel62.setFont(new java.awt.Font("Noto Sans", 2, 18)); // NOI18N
+        jLabel62.setText("Current Order:");
+
+        productsearchidButton2.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton2.setText("Cancel Order");
+        productsearchidButton2.addActionListener(this::productsearchidButton2ActionPerformed);
+
+        productsearchidButton3.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton3.setText("Place Order");
+        productsearchidButton3.addActionListener(this::productsearchidButton3ActionPerformed);
+
+        productsearchidButton4.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton4.setText("Remove Last");
+        productsearchidButton4.addActionListener(this::productsearchidButton4ActionPerformed);
+
+        productsearchidButton5.setFont(new java.awt.Font("Noto Sans", 1, 18)); // NOI18N
+        productsearchidButton5.setText("View");
+        productsearchidButton5.addActionListener(this::productsearchidButton5ActionPerformed);
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addGap(31, 31, 31)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(jLabel58)
+                                .addGap(63, 63, 63)
+                                .addComponent(productstock1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(jLabel57)
+                                .addGap(57, 57, 57)
+                                .addComponent(productname1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel59)
+                                    .addComponent(jLabel60))
+                                .addGap(15, 15, 15)
+                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(actualpricetextbox2, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                        .addGap(91, 91, 91))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel56)
+                            .addComponent(jLabel61))
+                        .addGap(30, 30, 30)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(productidsearch2, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(productidsearch4, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(productsearchidButton5, javax.swing.GroupLayout.PREFERRED_SIZE, 119, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(18, 18, 18)
+                                .addComponent(productsearchidButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 119, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(productsearchidButton4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(42, 42, 42)))
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel62)
+                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                        .addGroup(jPanel2Layout.createSequentialGroup()
+                            .addComponent(productsearchidButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(productsearchidButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 571, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(29, 29, 29)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(jLabel61)
+                                .addComponent(productidsearch4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(productsearchidButton5, javax.swing.GroupLayout.PREFERRED_SIZE, 76, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(productsearchidButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 76, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(productsearchidButton4, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel57)
+                            .addComponent(productname1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel58)
+                            .addComponent(productstock1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addGap(10, 10, 10)
+                                .addComponent(jLabel59))
+                            .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(22, 22, 22))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel62)
+                        .addGap(3, 3, 3)
+                        .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 327, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(productsearchidButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(productsearchidButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 10, Short.MAX_VALUE)))
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel60)
+                    .addComponent(actualpricetextbox2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(25, 25, 25))
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(29, 29, 29)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel56)
+                    .addComponent(productidsearch2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        jTabbedPane1.addTab("Make New Order", new javax.swing.ImageIcon(getClass().getResource("/gui/media/order-2.png")), jPanel2); // NOI18N
+
+        javax.swing.GroupLayout orderManagerLayout = new javax.swing.GroupLayout(orderManager);
+        orderManager.setLayout(orderManagerLayout);
+        orderManagerLayout.setHorizontalGroup(
+            orderManagerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jTabbedPane1)
+        );
+        orderManagerLayout.setVerticalGroup(
+            orderManagerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jTabbedPane1)
+        );
+
+        mainTappedPanel.addTab("Manage Orders", new javax.swing.ImageIcon(getClass().getResource("/gui/media/order.png")), orderManager); // NOI18N
 
         getContentPane().add(mainTappedPanel, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 60, 1140, 570));
 
@@ -2113,6 +2624,248 @@ public class MainPage extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_showpasswordButton2ActionPerformed
 
+    private void productidsearch2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productidsearch2ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productidsearch2ActionPerformed
+
+    private void productsearchidButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButton1ActionPerformed
+        // Add button - add item to cart with validation
+        String idText = productidsearch2.getText().trim();
+        String quantityText = productidsearch4.getText().trim();
+        
+        if (idText.isEmpty()) {
+            messageDialog("Missing Input", "Please enter a Product ID.", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        if (quantityText.isEmpty()) {
+            messageDialog("Missing Input", "Please enter a quantity.", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        try {
+            int productId = Integer.parseInt(idText);
+            int quantity = Integer.parseInt(quantityText);
+            
+            if (quantity <= 0) {
+                messageDialog("Invalid Quantity", "Quantity must be a positive number.", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            Product product = SystemManager.getInstance().searchProductById(productId);
+            
+            if (product == null) {
+                messageDialog("Product Not Found", "No product found with ID: " + productId, JOptionPane.ERROR_MESSAGE);
+                resetNewOrderProductView();
+                return;
+            }
+            
+            // Show product details
+            showNewOrderProductView(product);
+            
+            // Check if product already in cart
+            int existingIndex = findCartItemByProductId(productId);
+            if (existingIndex >= 0) {
+                messageDialog("Item Already in Cart", 
+                    "This product is already in your cart. Please edit the quantity in the table instead.", 
+                    JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            
+            // Check stock availability
+            if (quantity > product.getStock()) {
+                messageDialog("Insufficient Stock", 
+                    String.format("Only %d units available for %s.", product.getStock(), product.getName()), 
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Add to cart
+            cart.add(new OrderItem(product, quantity));
+            updateCartTable();
+            
+            // Clear input fields for next item
+            productidsearch2.setText("");
+            productidsearch4.setText("");
+            resetNewOrderProductView();
+            
+        } catch (NumberFormatException e) {
+            messageDialog("Invalid Input", "Product ID and Quantity must be valid numbers.", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            messageDialog("Error", "An error occurred: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_productsearchidButton1ActionPerformed
+
+    private void productname1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productname1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productname1ActionPerformed
+
+    private void productstock1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productstock1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productstock1ActionPerformed
+
+    private void actualpricetextbox2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_actualpricetextbox2ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_actualpricetextbox2ActionPerformed
+
+    private void productidsearch4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productidsearch4ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productidsearch4ActionPerformed
+
+    private void productsearchidButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButton2ActionPerformed
+        // Cancel Order button - reset everything
+        resetNewOrderForm();
+    }//GEN-LAST:event_productsearchidButton2ActionPerformed
+
+    private void productsearchidButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButton3ActionPerformed
+        // Place Order button - create the order
+        if (cart.isEmpty()) {
+            messageDialog("Empty Cart", "Please add items to your order before placing it.", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        try {
+            // Validate all items before placing order
+            for (OrderItem item : cart) {
+                Product product = SystemManager.getInstance().searchProductById(item.getProductId());
+                if (product == null) {
+                    messageDialog("Error", "A product in your cart no longer exists.", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                // Re-check stock before placing order
+                if (item.getQuantity() > product.getStock()) {
+                    messageDialog("Insufficient Stock", 
+                        String.format("Only %d units available for %s. Please adjust the quantity.", 
+                            product.getStock(), product.getName()), 
+                        JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+            
+            // Create the order using cart directly
+            Order order = SystemManager.getInstance().createOrder(cart);
+            
+            messageDialog("Order Placed", 
+                String.format("Order #%d has been placed successfully!\nTotal: %.2f", 
+                    order.getId(), order.getTotalPrice()), 
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            // Reset the form
+            resetNewOrderForm();
+            
+        } catch (Exception e) {
+            messageDialog("Error", "Failed to place order: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_productsearchidButton3ActionPerformed
+
+    private void productsearchidButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButton4ActionPerformed
+        // Remove Last button - remove the last item from cart
+        if (!cart.isEmpty()) {
+            cart.remove(cart.size() - 1);
+            updateCartTable();
+        }
+        // If cart is empty, do nothing (as per requirements)
+    }//GEN-LAST:event_productsearchidButton4ActionPerformed
+
+    private void productsearchidButton5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButton5ActionPerformed
+        // View button - show product details without checking quantity
+        String idText = productidsearch2.getText().trim();
+        
+        if (idText.isEmpty()) {
+            messageDialog("Missing Input", "Please enter a Product ID.", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        try {
+            int productId = Integer.parseInt(idText);
+            Product product = SystemManager.getInstance().searchProductById(productId);
+            
+            if (product == null) {
+                resetNewOrderProductView();
+                // No popup for view - just clear the fields
+            } else {
+                showNewOrderProductView(product);
+            }
+        } catch (NumberFormatException e) {
+            messageDialog("Invalid Input", "Product ID must be a valid number.", JOptionPane.ERROR_MESSAGE);
+            resetNewOrderProductView();
+        } catch (Exception e) {
+            messageDialog("Error", "An error occurred: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            resetNewOrderProductView();
+        }
+    }//GEN-LAST:event_productsearchidButton5ActionPerformed
+
+    private void productidsearch3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productidsearch3ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productidsearch3ActionPerformed
+
+    private void productsearchidButton6ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButton6ActionPerformed
+        // Search Order button
+        String idText = productidsearch3.getText().trim();
+        
+        if (idText.isEmpty()) {
+            messageDialog("Missing Input", "Please enter an Order ID.", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        try {
+            int orderId = Integer.parseInt(idText);
+            Order order = SystemManager.getInstance().searchOrderById(orderId);
+            
+            if (order == null) {
+                messageDialog("Order Not Found", "No order found with ID: " + orderId, JOptionPane.ERROR_MESSAGE);
+                resultOrder = null;
+                clearOrderSearchTable();
+                return;
+            }
+            
+            // Store the found order
+            resultOrder = order;
+            
+            // Populate the table with order items
+            displayOrderInTable(order);
+            
+            messageDialog("Order Found", 
+                String.format("Order #%d found with %d item(s).\nTotal: %.2f", 
+                    order.getId(), order.getOrderItems().size(), order.getTotalPrice()), 
+                JOptionPane.INFORMATION_MESSAGE);
+            
+        } catch (NumberFormatException e) {
+            messageDialog("Invalid Input", "Order ID must be a valid number.", JOptionPane.ERROR_MESSAGE);
+            resultOrder = null;
+            clearOrderSearchTable();
+        } catch (Exception e) {
+            messageDialog("Error", "An error occurred: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+            resultOrder = null;
+            clearOrderSearchTable();
+        }
+    }//GEN-LAST:event_productsearchidButton6ActionPerformed
+
+    private void productsearchidButton7ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsearchidButton7ActionPerformed
+        // Return Order button
+        if (resultOrder == null) {
+            messageDialog("No Order Selected", "Please search for an order first.", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        try {
+            int orderId = resultOrder.getId();
+            SystemManager.getInstance().returnOrder(orderId);
+            
+            messageDialog("Order Returned", 
+                String.format("Order #%d has been returned successfully.", orderId), 
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            // Reset the search
+            resultOrder = null;
+            productidsearch3.setText("");
+            clearOrderSearchTable();
+            
+        } catch (Exception e) {
+            messageDialog("Error", "Failed to return order: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_productsearchidButton7ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -2140,6 +2893,7 @@ public class MainPage extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField actualpricetextbox1;
+    private javax.swing.JTextField actualpricetextbox2;
     private javax.swing.JTextField addeddatetextbox;
     private javax.swing.JPanel addemp;
     private javax.swing.JButton addempButton;
@@ -2162,6 +2916,7 @@ public class MainPage extends javax.swing.JFrame {
     private javax.swing.JButton deleteProductButton;
     private javax.swing.JButton deleteempButton;
     private javax.swing.JTextArea description;
+    private javax.swing.JTextArea description1;
     private javax.swing.JTextField emailfield;
     private javax.swing.JTextField emailfield1;
     private javax.swing.JTextField expiryday;
@@ -2220,13 +2975,32 @@ public class MainPage extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel53;
     private javax.swing.JLabel jLabel54;
     private javax.swing.JLabel jLabel55;
+    private javax.swing.JLabel jLabel56;
+    private javax.swing.JLabel jLabel57;
+    private javax.swing.JLabel jLabel58;
+    private javax.swing.JLabel jLabel59;
     private javax.swing.JLabel jLabel6;
+    private javax.swing.JLabel jLabel60;
+    private javax.swing.JLabel jLabel61;
+    private javax.swing.JLabel jLabel62;
+    private javax.swing.JLabel jLabel63;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
     private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JPanel jPanel4;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JScrollPane jScrollPane4;
+    private javax.swing.JScrollPane jScrollPane5;
+    private javax.swing.JScrollPane jScrollPane6;
+    private javax.swing.JTabbedPane jTabbedPane1;
+    private javax.swing.JTable jTable1;
+    private javax.swing.JTable jTable2;
+    private javax.swing.JTable jTable3;
     private javax.swing.JButton listallemployeesButton;
     private javax.swing.JButton listallproductsButton;
     private javax.swing.JLabel logoutLable;
@@ -2236,18 +3010,31 @@ public class MainPage extends javax.swing.JFrame {
     private javax.swing.JTextField minstocktextbox;
     private javax.swing.JTextField namefield;
     private javax.swing.JTextField namefield1;
+    private javax.swing.JPanel orderManager;
     private javax.swing.JPasswordField passwordfield;
     private javax.swing.JPasswordField passwordfield1;
     private javax.swing.JTextField phonefield;
     private javax.swing.JTextField phonefield1;
     private javax.swing.JTextField pricetextbox;
     private javax.swing.JTextField productidsearch1;
+    private javax.swing.JTextField productidsearch2;
+    private javax.swing.JTextField productidsearch3;
+    private javax.swing.JTextField productidsearch4;
     private javax.swing.JTextField productionday;
     private javax.swing.JTextField productionmonth;
     private javax.swing.JTextField productname;
+    private javax.swing.JTextField productname1;
     private javax.swing.JTextField productonyear;
     private javax.swing.JButton productsearchidButton;
+    private javax.swing.JButton productsearchidButton1;
+    private javax.swing.JButton productsearchidButton2;
+    private javax.swing.JButton productsearchidButton3;
+    private javax.swing.JButton productsearchidButton4;
+    private javax.swing.JButton productsearchidButton5;
+    private javax.swing.JButton productsearchidButton6;
+    private javax.swing.JButton productsearchidButton7;
     private javax.swing.JTextField productstock;
+    private javax.swing.JTextField productstock1;
     private javax.swing.JTextField productstockdamaged;
     private javax.swing.JTextField productstockreturned;
     private javax.swing.JPanel profilePanel;

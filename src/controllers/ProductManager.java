@@ -76,10 +76,12 @@ class ProductManager {
         return ret;
     }
 
-    public void cancelItem(OrderItem item) {
+    public void returnItem(OrderItem item) {
         Product product = (Product) repo.searchById(item.getProductId());
-        int currentTotal = product.getTotalStockCount();
-        product.setTotalStockCount(currentTotal + item.getQuantity());
+        if (product == null) {
+            throw new IllegalArgumentException(String.format("Product with Id: %d doesn't exist.", item.getProductId()));
+        }
+        product.returnItem(item.getQuantity());
         repo.save();
     }
 
