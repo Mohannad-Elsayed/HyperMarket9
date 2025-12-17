@@ -1,2 +1,10 @@
 2025-12-17 02:14:45 [moha|ID:0|ADMIN] Logged in
 2025-12-17 02:14:47 [moha|ID:0|ADMIN] Logged out
+2025-12-17 20:54:35 [i|ID:7|INVENTORY] Logged in
+2025-12-17 20:55:10 [i|ID:7|INVENTORY] Added product: p9 (ID:37, Stock:120, Price:89.99)
+2025-12-17 20:55:18 [i|ID:7|INVENTORY] Logged out
+2025-12-17 20:56:44 [i|ID:7|INVENTORY] Logged in
+2025-12-17 20:57:24 [i|ID:7|INVENTORY] Added product: p10 (ID:38, Stock:450, Price:510.00)
+2025-12-17 20:57:55 [i|ID:7|INVENTORY] Logged out
+2025-12-17 21:01:51 [moha|ID:0|ADMIN] Logged in
+2025-12-17 21:01:53 [moha|ID:0|ADMIN] Logged out

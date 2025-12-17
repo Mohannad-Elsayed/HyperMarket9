@@ -29,7 +29,7 @@ public class Range implements Savable {
 
     public static Savable toObject(String line) {
         String[] data = line.split(Config.RANGE_CSV_DELIMITER);
-        return new Range(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
+        return new Range(Long.parseLong(data[0]), Long.parseLong(data[1]));
     }
 
     @Override

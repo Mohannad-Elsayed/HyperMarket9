@@ -2591,6 +2591,11 @@ public class MainPage extends javax.swing.JFrame {
                 messageDialog("Invalid Dates", "Expiry date cannot be before production date.", JOptionPane.WARNING_MESSAGE);
                 return;
             }
+            
+            if (expiryDate.isBefore(LocalDateTime.now())) {
+                messageDialog("Invalid Dates", "Product already expired.", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
             Product newProduct = new Product(
                     stock,

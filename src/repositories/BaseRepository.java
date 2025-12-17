@@ -80,7 +80,7 @@ public abstract class BaseRepository implements Editable {
                 }
             }
         } catch (Exception e) {
-            IO.println(e);
+            throw new RuntimeException("Error reading from file " + filePath);
         }
     }
 
