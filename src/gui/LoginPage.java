@@ -2,6 +2,7 @@ package gui;
 
 import controllers.*;
 import models.*;
+import util.ActivityLogger;
 
 import javax.swing.*;
 
@@ -126,6 +127,7 @@ public class LoginPage extends javax.swing.JFrame {
             this.dispose();
             new MainPage().setVisible(true);
         } catch (Exception e) {
+            ActivityLogger.log(null, String.format("Failed login attempt for username: %s", username));
             messageDialog("Login Failed", e.getMessage(), JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_loginButtonActionPerformed

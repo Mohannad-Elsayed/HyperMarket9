@@ -1,6 +1,7 @@
 package controllers;
 
 import models.*;
+import util.ActivityLogger;
 import util.IdManager;
 
 import java.io.IOException;
@@ -22,9 +23,11 @@ public class SystemManager {
         currentUser = null;
         currentUser = employeeManager.verify(userName, password);
         // if the previous line gone well, this is safe
+        ActivityLogger.log(currentUser, "Logged in");
     }
 
     public void logout() {
+        ActivityLogger.log(currentUser, "Logged out");
         flushAll();
         currentUser = null;
     }
@@ -38,21 +41,26 @@ public class SystemManager {
         currentUser.setEmail(email);
         currentUser.setPhone(phone);
         employeeManager.update(currentUser.getId(), currentUser);
+        ActivityLogger.log("Updated own profile (name, email, phone)");
     }
 
     // ====== Admin functionalities ======
     /* update username and password */
     public void updateMyInfo(String username, String password, String name, String email, String phone) {
         checkPermission(EmployeeRole.ADMIN);
-        updateMyInfo(name, email, phone);
         currentUser.setUserName(username);
         currentUser.setPassword(password);
+        currentUser.setName(name);
+        currentUser.setEmail(email);
+        currentUser.setPhone(phone);
         employeeManager.update(currentUser.getId(), currentUser);
+        ActivityLogger.log("Updated own profile (including username/password)");
     }
 
     public void addEmployee(Employee e) {
         checkPermission(EmployeeRole.ADMIN);
         employeeManager.add(e);
+        ActivityLogger.log(String.format("Added employee: %s (ID:%d, %s)", e.getName(), e.getId(), e.getRole()));
     }
 
     public void removeEmployee(int id) {
@@ -61,7 +69,9 @@ public class SystemManager {
         if (currentUser.getId() == id)
             throw new IllegalArgumentException("You cannot delete your own account.");
 
+        Employee emp = employeeManager.searchById(id);
         employeeManager.remove(id);
+        ActivityLogger.log(String.format("Deleted employee: %s (ID:%d)", emp != null ? emp.getName() : "Unknown", id));
     }
 
     public void updateEmployee(int id, Employee after) {
@@ -69,6 +79,7 @@ public class SystemManager {
         if (id != after.getId())
             throw new IllegalArgumentException("Cannot change employee Id.");
         employeeManager.update(id, after);
+        ActivityLogger.log(String.format("Updated employee: %s (ID:%d)", after.getName(), id));
     }
 
     public ArrayList<Employee> listAllEmployees() {
@@ -91,32 +102,39 @@ public class SystemManager {
     public void setProductDeal(int id, double deal) {
         checkPermission(EmployeeRole.MARKETER);
         productManager.setDeal(id, deal);
+        ActivityLogger.log(String.format("Set deal %.1f%% on product ID:%d", deal, id));
     }
 
     // ====== Inventory methods ======
     public void addProduct(Product p) {
         checkPermission(EmployeeRole.INVENTORY);
         productManager.add(p);
+        ActivityLogger.log(String.format("Added product: %s (ID:%d, Stock:%d, Price:%.2f)", p.getName(), p.getId(), p.getStock(), p.getPrice()));
     }
 
     public void removeProduct(int id) {
         checkPermission(EmployeeRole.INVENTORY);
+        Product p = productManager.searchById(id);
         productManager.remove(id);
+        ActivityLogger.log(String.format("Deleted product: %s (ID:%d)", p != null ? p.getName() : "Unknown", id));
     }
 
     public void updateProduct(int id, Product p) {
         checkPermission(EmployeeRole.INVENTORY);
         productManager.update(id, p);
+        ActivityLogger.log(String.format("Updated product: %s (ID:%d)", p.getName(), id));
     }
 
     public void resolveDamagedStock(int id) {
         checkPermission(EmployeeRole.INVENTORY);
         productManager.removeDamagedStock(id);
+        ActivityLogger.log(String.format("Resolved damaged stock for product ID:%d", id));
     }
 
     public void resolveReturnedStock(int id) {
         checkPermission(EmployeeRole.INVENTORY);
         productManager.resolveReturnedStock(id);
+        ActivityLogger.log(String.format("Resolved returned stock for product ID:%d", id));
     }
 
     // returns a list of alerts (in a form of strings) for the inventory manager
@@ -153,12 +171,15 @@ public class SystemManager {
     // ====== Sales functionalities ======
     public Order createOrder(ArrayList<OrderItem> cart) {
         checkPermission(EmployeeRole.SALES);
-        return orderManager.createOrder(cart);
+        Order order = orderManager.createOrder(cart);
+        ActivityLogger.log(String.format("Created order #%d with %d items, total: $%.2f", order.getId(), cart.size(), order.getTotalPrice()));
+        return order;
     }
 
     public void returnOrder(int id) {
         checkPermission(EmployeeRole.SALES);
         orderManager.returnOrder(id);
+        ActivityLogger.log(String.format("Returned order #%d", id));
     }
 
     public ArrayList<Order> listOrders() {
