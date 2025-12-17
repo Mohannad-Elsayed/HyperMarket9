@@ -18,11 +18,11 @@ public class OrderItem implements Savable {
     }
 
     public OrderItem(Product product, int quantity) {
-        this(IdManager.nextId(), product.getId(), product.getPrice(), quantity);
+        this(IdManager.nextId(), product.getId(), product.getRealPrice(), quantity);
     }
 
     public OrderItem(Product product) {
-        this(IdManager.nextId(), product.getId(), product.getPrice(), 1);
+        this(IdManager.nextId(), product.getId(), product.getRealPrice(), 1);
     }
 
     public int getProductId() {
