@@ -262,7 +262,7 @@ public class MainPage extends javax.swing.JFrame {
         productname1.setText(product.getName());
         productstock1.setText(String.valueOf(product.getStock()));
         description1.setText(product.getDescription());
-        actualpricetextbox2.setText(String.valueOf(product.getPrice()));
+        actualpricetextbox2.setText(String.format("%.2f", product.getRealPrice()));
     }
 
     void resetNewOrderForm() {
@@ -449,7 +449,7 @@ public class MainPage extends javax.swing.JFrame {
         productstockreturned.setText(String.valueOf(product.getReturnedCounter()));
         productstockdamaged.setText(String.valueOf(product.getDamagedCounter()));
         description.setText(product.getDescription());
-        pricetextbox.setText(String.valueOf(product.getPrice()));
+        pricetextbox.setText(String.format("%.2f", product.getPrice()));
         dealtextbox.setText(String.valueOf(product.getDeal()));
         actualpricetextbox1.setText(String.format("%.2f", product.getRealPrice()));
         minstocktextbox.setText(String.valueOf(product.getRecommendedQuantityRange().getMin()));
